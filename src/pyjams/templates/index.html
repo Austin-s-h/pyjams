@@ -7,58 +7,70 @@
     <div class="search-layout">
         <!-- Search Section -->
         <section class="search-section">
-            <h1>Search Tracks</h1>
-            <div class="search-input-group">
-                <i class="fas fa-search search-icon"></i>
-                <input type="text" 
-                       id="searchInput" 
-                       placeholder="Search for songs..." 
-                       value="{{ query }}"
-                       autocomplete="off"
-                       class="search-input">
-            </div>
-
-            <!-- Live Search Results -->
-            <div id="searchResults" class="search-results" style="display: none;">
-                <div class="results-loading" style="display: none;">
-                    <i class="fas fa-spinner fa-spin"></i> Searching...
-                </div>
-                <div class="results-content"></div>
-            </div>
-
-            <!-- Full Search Results -->
-            {% if tracks %}
-            <div class="track-grid">
-                {% for track in tracks %}
-                <div class="track-card">
-                    <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
-                         alt="Album Art" 
-                         class="track-image">
-                    <div class="track-info">
-                        <h3>{{ track.name }}</h3>
-                        <p class="artist-name">{{ track.artists[0].name }}</p>
-                        {% if track.preview_url %}
-                        <audio controls class="track-preview">
-                            <source src="{{ track.preview_url }}" type="audio/mpeg">
-                        </audio>
-                        {% endif %}
-                        <div class="track-actions">
-                            <button onclick="addToPublicPlaylist('{{ track.id }}')" 
-                                    class="add-track-btn"
-                                    {% if not config.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
-                                Add to Public Playlist
-                            </button>
+            <div class="search-header">
+                <h1>Search Tracks</h1>
+                <div class="search-input-group">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" 
+                           id="searchInput" 
+                           placeholder="Search for songs..." 
+                           value="{{ query }}"
+                           autocomplete="off"
+                           class="search-input">
+                    <!-- Move search results here, directly under input -->
+                    <div id="searchResults" class="search-results" style="display: none;">
+                        <div class="results-loading" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i> Searching...
                         </div>
+                        <div class="results-content"></div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-            {% endif %}
+
+            <div class="search-results-container">
+                <!-- Only track grid remains here -->
+                {% if tracks %}
+                <div class="track-grid">
+                    {% for track in tracks %}
+                    <div class="track-card">
+                        <div class="track-card-inner">
+                            <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
+                                 alt="Album Art" 
+                                 class="track-image">
+                            <div class="track-info">
+                                <h3 class="track-title">{{ track.name }}</h3>
+                                <p class="artist-name">{{ track.artists[0].name }}</p>
+                                {% if track.preview_url %}
+                                <div class="audio-container">
+                                    <audio controls class="track-preview">
+                                        <source src="{{ track.preview_url }}" type="audio/mpeg">
+                                    </audio>
+                                </div>
+                                {% endif %}
+                                <div class="track-actions">
+                                    <button onclick="addToPublicPlaylist('{{ track.id }}')" 
+                                            class="add-track-btn"
+                                            {% if not config.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
+                                        <i class="fas fa-plus"></i> Add to Public Playlist
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
         </section>
 
         <!-- Public Playlist Section -->
         <section class="public-playlist-section">
-            <h2>Public Playlist</h2>
+            <div class="playlist-header">
+                <h2>Public Playlist</h2>
+                {% if not config.PUBLIC_PLAYLIST_ID and current_user and current_user.id == config.ADMIN_USERNAME %}
+                <a href="{{ url_for('admin_panel') }}" class="admin-link">Set up playlist</a>
+                {% endif %}
+            </div>
             {% if config.PUBLIC_PLAYLIST_ID %}
             <div class="playlist-player">
                 <iframe src="https://open.spotify.com/embed/playlist/{{ config.PUBLIC_PLAYLIST_ID }}"
@@ -72,9 +84,6 @@
             {% else %}
             <div class="no-playlist-message">
                 <p>No public playlist has been set up yet.</p>
-                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
-                <a href="{{ url_for('admin_panel') }}" class="admin-link">Set up playlist in admin panel</a>
-                {% endif %}
             </div>
             {% endif %}
         </section>
@@ -135,6 +144,13 @@ searchInput.addEventListener('input', function(e) {
     }, 300);
 });
 
+function refreshPlaylistEmbed() {
+    const playlistFrame = document.querySelector('.playlist-player iframe');
+    if (playlistFrame) {
+        playlistFrame.src = playlistFrame.src;
+    }
+}
+
 function addToPublicPlaylist(trackId) {
     fetch('/add_song', {
         method: 'POST',
@@ -149,6 +165,8 @@ function addToPublicPlaylist(trackId) {
             alert(data.error);
         } else {
             alert(data.message);
+            // Refresh the playlist iframe after successful addition
+            refreshPlaylistEmbed();
         }
     })
     .catch(error => {
