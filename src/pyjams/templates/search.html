@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PyJams - Search</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="search-container">
+        <h1>Search Tracks</h1>
+        <form action="{{ url_for('search') }}" method="GET" class="search-form">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search for songs..." required>
+            <button type="submit">Search</button>
+        </form>
+
+        {% if tracks %}
+        <div class="results">
+            {% for track in tracks %}
+            <div class="track-item">
+                <img src="{{ track.album.images[0].url if track.album.images else '' }}" alt="Album Art" class="album-art">
+                <div class="track-info">
+                    <h3>{{ track.name }}</h3>
+                    <p>{{ track.artists[0].name }} - {{ track.album.name }}</p>
+                    {% if track.preview_url %}
+                    <audio controls>
+                        <source src="{{ track.preview_url }}" type="audio/mpeg">
+                    </audio>
+                    {% endif %}
+                    <div class="playlist-selector">
+                        <select class="playlist-select" data-track-id="{{ track.id }}">
+                            <option value="">Select playlist...</option>
+                            {% for playlist in playlists %}
+                            <option value="{{ playlist.id }}">{{ playlist.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button onclick="addToPlaylist(this)" data-track-id="{{ track.id }}">Add to Playlist</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif query %}
+        <p>No results found for "{{ query }}"</p>
+        {% endif %}
+    </div>
+
+    <script>
+    function addToPlaylist(button) {
+        const trackId = button.dataset.trackId;
+        const select = button.previousElementSibling;
+        const playlistId = select.value;
+        
+        if (!playlistId) {
+            alert('Please select a playlist');
+            return;
+        }
+
+        fetch('/add_song', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `track_id=${trackId}&playlist_id=${playlistId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error adding song to playlist');
+        });
+    }
+    </script>
+</body>
+</html>

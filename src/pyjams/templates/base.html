@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}PyJams{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('index') }}">PyJams</a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('search') }}">Search</a>
+            {% if session.get('token_info') %}
+                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
+                    <a href="{{ url_for('admin_panel') }}">Admin</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>PyJams - A Spotify Playlist Manager</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

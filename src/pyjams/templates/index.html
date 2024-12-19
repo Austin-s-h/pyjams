@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Song to Playlist</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Add Song to Playlist</h1>
+    <form action="/add_song" method="post">
+        <label for="song_name">Song Name:</label>
+        <input type="text" id="song_name" name="song_name"><br><br>
+        <label for="artist_name">Artist Name:</label>
+        <input type="text" id="artist_name" name="artist_name"><br><br>
+        <input type="submit" value="Add Song">
+    </form>
+</body>
+</html>

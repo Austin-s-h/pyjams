@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PyJams - Login</title>
+</head>
+<body>
+    <h1>Welcome to PyJams</h1>
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <p>Please log in with your Spotify account to continue</p>
+    <a href="{{ url_for('login') }}" class="login-btn">Login with Spotify</a>
+</body>
+</html>

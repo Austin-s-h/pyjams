@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PyJams - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="admin-container">
+        <h1>Admin Panel</h1>
+        
+        {% if current_public_playlist %}
+        <div class="current-playlist">
+            <h2>Current Public Playlist</h2>
+            <div class="playlist-info">
+                {% if current_public_playlist.images %}
+                <img src="{{ current_public_playlist.images[0].url }}" alt="Playlist Cover">
+                {% endif %}
+                <h3>{{ current_public_playlist.name }}</h3>
+                <p>{{ current_public_playlist.tracks.total }} tracks</p>
+                <a href="{{ url_for('playlist_details', playlist_id=current_public_playlist.id) }}" class="view-btn">View Playlist</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="select-playlist">
+            <h2>Select Public Playlist</h2>
+            <div class="playlist-grid">
+                {% for playlist in playlists %}
+                <div class="playlist-card">
+                    {% if playlist.images %}
+                    <img src="{{ playlist.images[0].url }}" alt="Playlist Cover">
+                    {% endif %}
+                    <h3>{{ playlist.name }}</h3>
+                    <p>{{ playlist.tracks.total }} tracks</p>
+                    <button onclick="setPublicPlaylist('{{ playlist.id }}')" class="select-btn">
+                        Select as Public Playlist
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function setPublicPlaylist(playlistId) {
+        if (!confirm('Are you sure you want to set this as the public playlist?')) return;
+
+        fetch('/admin/set_public_playlist', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `playlist_id=${playlistId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                location.reload();
+            }
+        })
+        .catch(error => {
+            alert('Error setting public playlist');
+        });
+    }
+    </script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ playlist.name }} - PyJams</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="playlist-container">
+        <div class="playlist-header">
+            {% if playlist.images %}
+            <img src="{{ playlist.images[0].url }}" alt="Playlist Cover" class="playlist-cover">
+            {% endif %}
+            <div class="playlist-info">
+                <h1>{{ playlist.name }}</h1>
+                <p>{{ playlist.description }}</p>
+                <p>{{ playlist.tracks.total }} tracks</p>
+                <p>Created by {{ playlist.owner.display_name }}</p>
+            </div>
+        </div>
+
+        <div class="playlist-tracks">
+            {% for item in tracks %}
+            <div class="track-item">
+                {% if item.track.album.images %}
+                <img src="{{ item.track.album.images[-1].url }}" alt="Album Art" class="track-art">
+                {% endif %}
+                <div class="track-info">
+                    <h3>{{ item.track.name }}</h3>
+                    <p>{{ item.track.artists[0].name }}</p>
+                    <p>{{ item.track.album.name }}</p>
+                    {% if item.track.preview_url %}
+                    <audio controls>
+                        <source src="{{ item.track.preview_url }}" type="audio/mpeg">
+                    </audio>
+                    {% endif %}
+                    <button onclick="removeSong('{{ item.track.id }}', '{{ playlist.id }}')" class="remove-btn">
+                        Remove from Playlist
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+    function removeSong(trackId, playlistId) {
+        if (!confirm('Are you sure you want to remove this song?')) return;
+
+        fetch('/remove_song', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `track_id=${trackId}&playlist_id=${playlistId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                location.reload();
+            }
+        })
+        .catch(error => {
+            alert('Error removing song from playlist');
+        });
+    }
+    </script>
+</body>
+</html>
