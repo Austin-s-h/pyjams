@@ -1,16 +1,7 @@
 import os
 from typing import Any
 
-from flask import (
-    Flask,
-    g,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    session,
-    url_for,
-)
+from flask import Flask, g, jsonify, redirect, render_template, request, session, url_for
 from spotipy import Spotify
 from spotipy.exceptions import SpotifyException
 from spotipy.oauth2 import SpotifyOAuth
@@ -200,7 +191,7 @@ def search_preview():
         return jsonify({"error": "No results found"})
 
     except Exception as e:
-        app.logger.error(f"Search preview error: {str(e)}")
+        app.logger.error(f"Search preview error: {e!s}")
         return jsonify({"error": "Failed to search tracks"})
 
 
@@ -214,12 +205,12 @@ def search() -> str | Any:
     try:
         sp = get_spotify()
         query = request.args.get("q", "")
-        
+
         # Get the public playlist if configured
         public_playlist = None
         if app.config["PUBLIC_PLAYLIST_ID"]:
             public_playlist = sp.playlist(app.config["PUBLIC_PLAYLIST_ID"])
-        
+
         # Only search if there's a query
         tracks = None
         if query:
@@ -231,10 +222,11 @@ def search() -> str | Any:
             query=query,
             tracks=tracks,
             public_playlist=public_playlist,
-            playlists=sp.current_user_playlists()["items"]
+            playlists=sp.current_user_playlists()["items"],
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 @app.route("/api/search_tracks")
 def search_tracks():
@@ -250,21 +242,27 @@ def search_tracks():
         sp = get_spotify()
         results = sp.search(q=query, type="track", limit=8)
         if results and results["tracks"]["items"]:
-            return jsonify({
-                "tracks": [{
-                    "id": track["id"],
-                    "name": track["name"],
-                    "artists": [artist["name"] for artist in track["artists"]],
-                    "album": {
-                        "name": track["album"]["name"],
-                        "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None
-                    },
-                    "preview_url": track["preview_url"]
-                } for track in results["tracks"]["items"]]
-            })
+            return jsonify(
+                {
+                    "tracks": [
+                        {
+                            "id": track["id"],
+                            "name": track["name"],
+                            "artists": [artist["name"] for artist in track["artists"]],
+                            "album": {
+                                "name": track["album"]["name"],
+                                "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
+                            },
+                            "preview_url": track["preview_url"],
+                        }
+                        for track in results["tracks"]["items"]
+                    ]
+                }
+            )
         return jsonify({"tracks": []})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 @app.route("/playlist/<playlist_id>")
 def playlist_details(playlist_id: str) -> str:
@@ -356,18 +354,29 @@ def remove_song() -> tuple:
 
     Form Data:
         track_id: Spotify track ID
-        playlist_id: Optional playlist ID
+        playlist_id: Optional playlist ID (defaults to public playlist)
 
     Raises:
         SpotifyException: If remove operation fails
     """
     try:
+        if "token_info" not in session:
+            return jsonify({"error": "Please login first"}), 401
+
         sp = get_spotify()
         track_id = request.form["track_id"]
-        playlist_id = request.form.get("playlist_id", app.config["SPOTIFY_PLAYLIST_ID"])
+        playlist_id = request.form.get("playlist_id", app.config["PUBLIC_PLAYLIST_ID"])
 
+        if not playlist_id:
+            return jsonify({"error": "No playlist specified"}), 400
+
+        # Get track details for the response message
+        track = sp.track(track_id)
+
+        # Remove the track
         sp.playlist_remove_all_occurrences_of_items(playlist_id, [track_id])
-        return jsonify({"message": "Song removed successfully"})
+
+        return jsonify({"message": f'Removed "{track["name"]}" from the playlist', "track_id": track_id})
     except SpotifyException as e:
         return jsonify({"error": str(e)}), 400
 

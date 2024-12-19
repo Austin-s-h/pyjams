@@ -1,85 +1,166 @@
 {% extends "base.html" %}
 
-{% block title %}PyJams - Home{% endblock %}
+{% block title %}PyJams - Search{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="welcome-banner">
-        <h1>Welcome, {{ user.display_name }}!</h1>
-        <p>What would you like to listen to today?</p>
-    </div>
-
-    <div class="main-content-grid">
+<div class="search-container">
+    <div class="search-layout">
+        <!-- Search Section -->
         <section class="search-section">
-            <div class="section-header">
-                <h2><i class="fas fa-search"></i> Quick Search</h2>
+            <h1>Search Tracks</h1>
+            <div class="search-input-group">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" 
+                       id="searchInput" 
+                       placeholder="Search for songs..." 
+                       value="{{ query }}"
+                       autocomplete="off"
+                       class="search-input">
             </div>
-            <form action="{{ url_for('search') }}" method="GET" class="search-form">
-                <div class="search-input-group">
-                    <input type="text" 
-                           name="q" 
-                           placeholder="Search songs, artists, or albums..." 
-                           required
-                           class="search-input">
-                    <button type="submit" class="search-button">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </form>
-        </section>
 
-        {% if public_playlist %}
-        <section class="featured-section">
-            <div class="section-header">
-                <h2><i class="fas fa-star"></i> Featured Playlist</h2>
-            </div>
-            <div class="playlist-card">
-                <div class="playlist-cover">
-                    {% if public_playlist.images %}
-                    <img src="{{ public_playlist.images[0].url }}" alt="{{ public_playlist.name }}">
-                    {% else %}
-                    <div class="placeholder-cover">
-                        <i class="fas fa-music"></i>
-                    </div>
-                    {% endif %}
+            <!-- Live Search Results -->
+            <div id="searchResults" class="search-results" style="display: none;">
+                <div class="results-loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Searching...
                 </div>
-                <div class="playlist-info">
-                    <h3>{{ public_playlist.name }}</h3>
-                    <p class="playlist-description">{{ public_playlist.description or 'Collaborative playlist' }}</p>
-                    <div class="playlist-stats">
-                        <span><i class="fas fa-music"></i> {{ public_playlist.tracks.total }} tracks</span>
-                        <a href="{{ url_for('playlist_details', playlist_id=public_playlist.id) }}" 
-                           class="view-playlist-btn">View Playlist</a>
-                    </div>
-                </div>
+                <div class="results-content"></div>
             </div>
-        </section>
-        {% endif %}
 
-        {% if playlists %}
-        <section class="your-playlists-section">
-            <div class="section-header">
-                <h2><i class="fas fa-list"></i> Your Playlists</h2>
-            </div>
-            <div class="playlist-grid">
-                {% for playlist in playlists['items'][:6] if playlist %}
-                <div class="playlist-mini-card">
-                    {% if playlist.images %}
-                    <img src="{{ playlist.images[0].url }}" alt="{{ playlist.name }}">
-                    {% else %}
-                    <div class="placeholder-cover">
-                        <i class="fas fa-music"></i>
-                    </div>
-                    {% endif %}
-                    <div class="playlist-mini-info">
-                        <h4>{{ playlist.name }}</h4>
-                        <p>{{ playlist.tracks.total }} tracks</p>
+            <!-- Full Search Results -->
+            {% if tracks %}
+            <div class="track-grid">
+                {% for track in tracks %}
+                <div class="track-card">
+                    <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
+                         alt="Album Art" 
+                         class="track-image">
+                    <div class="track-info">
+                        <h3>{{ track.name }}</h3>
+                        <p class="artist-name">{{ track.artists[0].name }}</p>
+                        {% if track.preview_url %}
+                        <audio controls class="track-preview">
+                            <source src="{{ track.preview_url }}" type="audio/mpeg">
+                        </audio>
+                        {% endif %}
+                        <div class="track-actions">
+                            <button onclick="addToPublicPlaylist('{{ track.id }}')" 
+                                    class="add-track-btn"
+                                    {% if not config.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
+                                Add to Public Playlist
+                            </button>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
+            {% endif %}
         </section>
-        {% endif %}
+
+        <!-- Public Playlist Section -->
+        <section class="public-playlist-section">
+            <h2>Public Playlist</h2>
+            {% if config.PUBLIC_PLAYLIST_ID %}
+            <div class="playlist-player">
+                <iframe src="https://open.spotify.com/embed/playlist/{{ config.PUBLIC_PLAYLIST_ID }}"
+                        width="100%" 
+                        height="380" 
+                        frameborder="0" 
+                        allowtransparency="true" 
+                        allow="encrypted-media">
+                </iframe>
+            </div>
+            {% else %}
+            <div class="no-playlist-message">
+                <p>No public playlist has been set up yet.</p>
+                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
+                <a href="{{ url_for('admin_panel') }}" class="admin-link">Set up playlist in admin panel</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </section>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let searchTimeout;
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+const resultsLoading = document.querySelector('.results-loading');
+const resultsContent = document.querySelector('.results-content');
+
+searchInput.addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value;
+    
+    if (query.length < 2) {
+        searchResults.style.display = 'none';
+        return;
+    }
+
+    searchResults.style.display = 'block';
+    resultsLoading.style.display = 'flex';
+    resultsContent.style.display = 'none';
+
+    searchTimeout = setTimeout(() => {
+        fetch(`/api/search_tracks?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                resultsLoading.style.display = 'none';
+                resultsContent.style.display = 'block';
+                
+                if (data.tracks && data.tracks.length > 0) {
+                    resultsContent.innerHTML = data.tracks.map(track => `
+                        <div class="search-result-item">
+                            <img src="${track.album.image}" alt="${track.name}" class="result-image">
+                            <div class="result-info">
+                                <div class="result-name">${track.name}</div>
+                                <div class="result-artist">${track.artists.join(', ')}</div>
+                            </div>
+                            <button onclick="addToPublicPlaylist('${track.id}')" class="add-result-btn">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    resultsContent.innerHTML = '<div class="no-results">No tracks found</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultsLoading.style.display = 'none';
+                resultsContent.innerHTML = '<div class="search-error">Error searching tracks</div>';
+            });
+    }, 300);
+});
+
+function addToPublicPlaylist(trackId) {
+    fetch('/add_song', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `track_id=${trackId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error adding song to playlist');
+    });
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!searchResults.contains(e.target) && !searchInput.contains(e.target)) {
+        searchResults.style.display = 'none';
+    }
+});
+</script>
 {% endblock %}
