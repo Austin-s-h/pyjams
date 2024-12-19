@@ -1,106 +1,48 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>PyJams - Admin Panel</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .playlist-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 1.5rem;
-            padding: 1rem;
-        }
-        
-        .playlist-card {
-            background: #282828;
-            border-radius: 8px;
-            padding: 1rem;
-            transition: background-color 0.3s;
-        }
-        
-        .playlist-card:hover {
-            background: #333333;
-        }
-        
-        .playlist-image {
-            width: 100%;
-            aspect-ratio: 1;
-            object-fit: cover;
-            border-radius: 4px;
-            margin-bottom: 0.75rem;
-        }
-        
-        .playlist-name {
-            font-weight: bold;
-            margin: 0.5rem 0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .playlist-tracks {
-            color: #b3b3b3;
-            font-size: 0.9rem;
-        }
-        
-        .set-public-btn {
-            width: 100%;
-            margin-top: 0.5rem;
-            padding: 0.5rem;
-            border-radius: 4px;
-            border: none;
-            background: #1DB954;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .set-public-btn:hover {
-            background: #1ed760;
-        }
+{% extends "base.html" %}
 
-        .current-playlist {
-            border: 2px solid #1DB954;
-        }
-    </style>
-</head>
-<body>
-    <div class="admin-container">
-        <h1>Admin Panel</h1>
-        
-        {% if current_public_playlist %}
-        <div class="current-playlist">
-            <h2>Current Public Playlist</h2>
+{% block title %}PyJams - Admin Panel{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="section-header">
+        <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
+    </div>
+    
+    {% if current_public_playlist %}
+    <section class="current-public-section">
+        <div class="section-header">
+            <h2><i class="fas fa-star"></i> Current Public Playlist</h2>
+        </div>
+        <div class="playlist-card current-playlist">
+            {% if current_public_playlist.images %}
+            <img src="{{ current_public_playlist.images[0].url }}" alt="Playlist Cover" class="playlist-image">
+            {% endif %}
             <div class="playlist-info">
-                {% if current_public_playlist.images %}
-                <img src="{{ current_public_playlist.images[0].url }}" alt="Playlist Cover">
-                {% endif %}
                 <h3>{{ current_public_playlist.name }}</h3>
                 <p>{{ current_public_playlist.tracks.total }} tracks</p>
-                <a href="{{ url_for('playlist_details', playlist_id=current_public_playlist.id) }}" class="view-btn">View Playlist</a>
+                <a href="{{ url_for('playlist_details', playlist_id=current_public_playlist.id) }}" 
+                   class="view-playlist-btn">View Playlist</a>
             </div>
         </div>
-        {% endif %}
+    </section>
+    {% endif %}
 
-        <div class="select-playlist">
-            <h2>Select Public Playlist</h2>
-            <div class="playlist-grid">
-                {% for playlist in playlists %}
-                <div class="playlist-card {% if current_public_playlist and playlist.id == current_public_playlist.id %}current-playlist{% endif %}">
-                    <img 
-                        src="{{ playlist.images[0].url if playlist.images else '/static/default-playlist.png' }}" 
-                        class="playlist-image" 
-                        alt="{{ playlist.name }}"
-                    >
-                    <div class="playlist-name">{{ playlist.name }}</div>
-                    <div class="playlist-tracks">{{ playlist.tracks.total }} tracks</div>
-                    <button 
-                        class="set-public-btn"
-                        onclick="setPublicPlaylist('{{ playlist.id }}')"
-                        {% if current_public_playlist and playlist.id == current_public_playlist.id %}
-                        disabled
-                        {% endif %}
-                    >
+    <section class="select-playlist-section">
+        <div class="section-header">
+            <h2><i class="fas fa-list"></i> Select Public Playlist</h2>
+        </div>
+        <div class="playlist-grid">
+            {% for playlist in playlists %}
+            <div class="playlist-card {% if current_public_playlist and playlist.id == current_public_playlist.id %}current-playlist{% endif %}">
+                <img src="{{ playlist.images[0].url if playlist.images else '/static/default-playlist.png' }}" 
+                     class="playlist-image" 
+                     alt="{{ playlist.name }}">
+                <div class="playlist-info">
+                    <h3 class="playlist-name">{{ playlist.name }}</h3>
+                    <p class="playlist-tracks">{{ playlist.tracks.total }} tracks</p>
+                    <button class="set-public-btn"
+                            onclick="setPublicPlaylist('{{ playlist.id }}')"
+                            {% if current_public_playlist and playlist.id == current_public_playlist.id %}disabled{% endif %}>
                         {% if current_public_playlist and playlist.id == current_public_playlist.id %}
                         Current Public Playlist
                         {% else %}
@@ -108,12 +50,15 @@
                         {% endif %}
                     </button>
                 </div>
-                {% endfor %}
             </div>
+            {% endfor %}
         </div>
-    </div>
+    </section>
+</div>
+{% endblock %}
 
-    <script>
+{% block scripts %}
+<script>
     function setPublicPlaylist(playlistId) {
         if (!confirm('Are you sure you want to set this as the public playlist?')) return;
 
@@ -137,6 +82,5 @@
             alert('Error setting public playlist');
         });
     }
-    </script>
-</body>
-</html>
+</script>
+{% endblock %}
