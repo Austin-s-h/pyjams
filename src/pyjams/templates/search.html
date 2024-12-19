@@ -4,94 +4,155 @@
 
 {% block content %}
 <div class="search-container">
-    <section class="search-section">
-        <h1>Search Tracks</h1>
-        <form action="{{ url_for('search') }}" method="GET" class="search-form">
+    <div class="search-layout">
+        <!-- Search Section -->
+        <section class="search-section">
+            <h1>Search Tracks</h1>
             <div class="search-input-group">
+                <i class="fas fa-search search-icon"></i>
                 <input type="text" 
-                       name="q" 
-                       value="{{ query }}" 
-                       placeholder="Search for songs, artists, or albums..." 
-                       required
+                       id="searchInput" 
+                       placeholder="Search for songs..." 
+                       value="{{ query }}"
+                       autocomplete="off"
                        class="search-input">
-                <button type="submit" class="search-button">Search</button>
             </div>
-        </form>
-    </section>
 
-    {% if tracks %}
-    <section class="results-section">
-        <div class="track-grid">
-            {% for track in tracks %}
-            <div class="track-card">
-                <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
-                     alt="Album Art" 
-                     class="track-image">
-                <div class="track-info">
-                    <h3>{{ track.name }}</h3>
-                    <p class="artist-name">{{ track.artists[0].name }}</p>
-                    <p class="album-name">{{ track.album.name }}</p>
-                    {% if track.preview_url %}
-                    <audio controls class="track-preview">
-                        <source src="{{ track.preview_url }}" type="audio/mpeg">
-                    </audio>
-                    {% endif %}
-                    <div class="track-actions">
-                        <select class="playlist-select" data-track-id="{{ track.id }}">
-                            <option value="">Select playlist...</option>
-                            {% for playlist in playlists %}
-                            <option value="{{ playlist.id }}">{{ playlist.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <button onclick="addToPlaylist(this)" 
-                                data-track-id="{{ track.id }}"
-                                class="add-track-btn">
-                            Add to Playlist
-                        </button>
+            <!-- Live Search Results -->
+            <div id="searchResults" class="search-results" style="display: none;">
+                <div class="results-loading" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i> Searching...
+                </div>
+                <div class="results-content"></div>
+            </div>
+
+            <!-- Full Search Results -->
+            {% if tracks %}
+            <div class="track-grid">
+                {% for track in tracks %}
+                <div class="track-card">
+                    <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
+                         alt="Album Art" 
+                         class="track-image">
+                    <div class="track-info">
+                        <h3>{{ track.name }}</h3>
+                        <p class="artist-name">{{ track.artists[0].name }}</p>
+                        {% if track.preview_url %}
+                        <audio controls class="track-preview">
+                            <source src="{{ track.preview_url }}" type="audio/mpeg">
+                        </audio>
+                        {% endif %}
+                        <div class="track-actions">
+                            <button onclick="addToPublicPlaylist('{{ track.id }}')" 
+                                    class="add-track-btn">
+                                Add to Public Playlist
+                            </button>
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
-    </section>
-    {% elif query %}
-    <div class="no-results">
-        <p>No results found for "{{ query }}"</p>
+            {% endif %}
+        </section>
+
+        <!-- Public Playlist Section -->
+        {% if public_playlist %}
+        <section class="public-playlist-section">
+            <h2>Public Playlist</h2>
+            <div class="playlist-player">
+                <iframe src="https://open.spotify.com/embed/playlist/{{ public_playlist.id }}"
+                        width="100%" 
+                        height="380" 
+                        frameborder="0" 
+                        allowtransparency="true" 
+                        allow="encrypted-media">
+                </iframe>
+            </div>
+        </section>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
+{% endblock %}
 
 {% block scripts %}
 <script>
-    function addToPlaylist(button) {
-        const trackId = button.dataset.trackId;
-        const select = button.previousElementSibling;
-        const playlistId = select.value;
-        
-        if (!playlistId) {
-            alert('Please select a playlist');
-            return;
-        }
+let searchTimeout;
+const searchInput = document.getElementById('searchInput');
+const searchResults = document.getElementById('searchResults');
+const resultsLoading = document.querySelector('.results-loading');
+const resultsContent = document.querySelector('.results-content');
 
-        fetch('/add_song', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `track_id=${trackId}&playlist_id=${playlistId}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                alert(data.message);
-            }
-        })
-        .catch(error => {
-            alert('Error adding song to playlist');
-        });
+searchInput.addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value;
+    
+    if (query.length < 2) {
+        searchResults.style.display = 'none';
+        return;
     }
+
+    searchResults.style.display = 'block';
+    resultsLoading.style.display = 'flex';
+    resultsContent.style.display = 'none';
+
+    searchTimeout = setTimeout(() => {
+        fetch(`/api/search_tracks?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                resultsLoading.style.display = 'none';
+                resultsContent.style.display = 'block';
+                
+                if (data.tracks && data.tracks.length > 0) {
+                    resultsContent.innerHTML = data.tracks.map(track => `
+                        <div class="search-result-item">
+                            <img src="${track.album.image}" alt="${track.name}" class="result-image">
+                            <div class="result-info">
+                                <div class="result-name">${track.name}</div>
+                                <div class="result-artist">${track.artists.join(', ')}</div>
+                            </div>
+                            <button onclick="addToPublicPlaylist('${track.id}')" class="add-result-btn">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    resultsContent.innerHTML = '<div class="no-results">No tracks found</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                resultsLoading.style.display = 'none';
+                resultsContent.innerHTML = '<div class="search-error">Error searching tracks</div>';
+            });
+    }, 300);
+});
+
+function addToPublicPlaylist(trackId) {
+    fetch('/add_song', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `track_id=${trackId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error adding song to playlist');
+    });
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!searchResults.contains(e.target) && !searchInput.contains(e.target)) {
+        searchResults.style.display = 'none';
+    }
+});
 </script>
-{% endblock %}
 {% endblock %}

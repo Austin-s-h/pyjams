@@ -207,40 +207,64 @@ def search_preview():
 # Playlist management routes
 @app.route("/search")
 def search() -> str | Any:
-    """Search Spotify catalog.
-
-    Returns:
-        Union[str, Any]: Search results page or redirect
-
-    Query Parameters:
-        q (str): Search query
-        type (str): Comma-separated search types
-    """
+    """Search page with live results and public playlist."""
     if "token_info" not in session:
         return redirect(url_for("login"))
 
-    sp = get_spotify()
-    query = request.args.get("q", "")
-    search_type = request.args.get("type", "track,artist,album")
+    try:
+        sp = get_spotify()
+        query = request.args.get("q", "")
+        
+        # Get the public playlist if configured
+        public_playlist = None
+        if app.config["PUBLIC_PLAYLIST_ID"]:
+            public_playlist = sp.playlist(app.config["PUBLIC_PLAYLIST_ID"])
+        
+        # Only search if there's a query
+        tracks = None
+        if query:
+            results = sp.search(q=query, type="track", limit=20)
+            tracks = results["tracks"]["items"] if results else None
 
-    if not query:
         return render_template(
             "search.html",
-            featured=sp.featured_playlists(),
-            new_releases=sp.new_releases(),
+            query=query,
+            tracks=tracks,
+            public_playlist=public_playlist,
+            playlists=sp.current_user_playlists()["items"]
         )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
-    results = sp.search(q=query, type=search_type, limit=12)
-    public_playlist = sp.playlist(app.config["PUBLIC_PLAYLIST_ID"]) if app.config["PUBLIC_PLAYLIST_ID"] else None
+@app.route("/api/search_tracks")
+def search_tracks():
+    """API endpoint for live search results."""
+    if "token_info" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
 
-    return render_template(
-        "search.html",
-        query=query,
-        results=results,
-        search_type=search_type,
-        public_playlist=public_playlist,
-    )
+    query = request.args.get("q", "")
+    if len(query) < 2:
+        return jsonify({"tracks": []})
 
+    try:
+        sp = get_spotify()
+        results = sp.search(q=query, type="track", limit=8)
+        if results and results["tracks"]["items"]:
+            return jsonify({
+                "tracks": [{
+                    "id": track["id"],
+                    "name": track["name"],
+                    "artists": [artist["name"] for artist in track["artists"]],
+                    "album": {
+                        "name": track["album"]["name"],
+                        "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None
+                    },
+                    "preview_url": track["preview_url"]
+                } for track in results["tracks"]["items"]]
+            })
+        return jsonify({"tracks": []})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 @app.route("/playlist/<playlist_id>")
 def playlist_details(playlist_id: str) -> str:
