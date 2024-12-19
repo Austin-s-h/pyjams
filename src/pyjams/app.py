@@ -105,28 +105,24 @@ def utility_processor() -> dict[str, Any]:
 # Basic routes
 @app.route("/")
 def index() -> str:
-    """Render index page.
-
-    Returns:
-        str: Rendered template
-    """
+    """Render index page with login or search interface."""
     if "token_info" not in session:
         return render_template("login.html")
 
     sp = get_spotify()
-    return render_template("index.html", user=sp.current_user(), playlists=sp.current_user_playlists())
+    query = request.args.get("q", "")
+    tracks = None
+
+    if query:
+        results = sp.search(q=query, type="track", limit=12)
+        tracks = results["tracks"]["items"] if results else None
+
+    return render_template("index.html", tracks=tracks, query=query)
 
 
-@app.route("/login")
-def login() -> str | Any:
-    """Initialize Spotify OAuth login flow.
-
-    Returns:
-        Union[str, Any]: Redirect to Spotify or error page
-
-    Raises:
-        Exception: If OAuth initialization fails
-    """
+@app.route("/auth")
+def auth() -> Any:
+    """Initialize Spotify OAuth login flow."""
     try:
         auth = init_spotify_oauth()
         auth_url = auth.get_authorize_url()
@@ -136,14 +132,11 @@ def login() -> str | Any:
 
 
 @app.route("/callback")
-def callback() -> Any | tuple:
+def callback() -> str | Any:
     """Handle Spotify OAuth callback.
 
     Returns:
-        Union[Any, tuple]: Redirect or error response
-
-    Raises:
-        Exception: If token exchange fails
+        Union[str, Any]: Redirect to index or error response
     """
     try:
         code = request.args.get("code")
@@ -159,78 +152,17 @@ def callback() -> Any | tuple:
         session["token_info"] = token_info
         return redirect(url_for("index"))
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        app.logger.error(f"Callback error: {e}")
+        return render_template("login.html", error="Authentication failed")
 
 
-@app.route("/api/search_preview")
-def search_preview():
-    """Handle quick search preview requests"""
-    query = request.args.get("q", "")
-    if len(query) < 3:
-        return jsonify({"error": "Query too short"})
-
-    try:
-        sp = get_spotify()
-        if not sp:
-            return jsonify({"error": "Spotify client not initialized"})
-
-        results = sp.search(q=query, limit=1, type="track")
-        if results and results["tracks"]["items"]:
-            track = results["tracks"]["items"][0]
-            return jsonify(
-                {
-                    "track": {
-                        "id": track["id"],
-                        "name": track["name"],
-                        "artists": track["artists"],
-                        "album": {"name": track["album"]["name"], "images": track["album"]["images"]},
-                        "preview_url": track["preview_url"],
-                    }
-                }
-            )
-        return jsonify({"error": "No results found"})
-
-    except Exception as e:
-        app.logger.error(f"Search preview error: {e!s}")
-        return jsonify({"error": "Failed to search tracks"})
+# Remove /search route since it's merged into index
 
 
-# Playlist management routes
-@app.route("/search")
-def search() -> str | Any:
-    """Search page with live results and public playlist."""
-    if "token_info" not in session:
-        return redirect(url_for("login"))
-
-    try:
-        sp = get_spotify()
-        query = request.args.get("q", "")
-
-        # Get the public playlist if configured
-        public_playlist = None
-        if app.config["PUBLIC_PLAYLIST_ID"]:
-            public_playlist = sp.playlist(app.config["PUBLIC_PLAYLIST_ID"])
-
-        # Only search if there's a query
-        tracks = None
-        if query:
-            results = sp.search(q=query, type="track", limit=20)
-            tracks = results["tracks"]["items"] if results else None
-
-        return render_template(
-            "search.html",
-            query=query,
-            tracks=tracks,
-            public_playlist=public_playlist,
-            playlists=sp.current_user_playlists()["items"],
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-
+# Keep essential API endpoints
 @app.route("/api/search_tracks")
 def search_tracks():
-    """API endpoint for live search results."""
+    """Quick search API endpoint."""
     if "token_info" not in session:
         return jsonify({"error": "Not authenticated"}), 401
 
@@ -240,54 +172,25 @@ def search_tracks():
 
     try:
         sp = get_spotify()
-        results = sp.search(q=query, type="track", limit=8)
-        if results and results["tracks"]["items"]:
-            return jsonify(
-                {
-                    "tracks": [
-                        {
-                            "id": track["id"],
-                            "name": track["name"],
-                            "artists": [artist["name"] for artist in track["artists"]],
-                            "album": {
-                                "name": track["album"]["name"],
-                                "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
-                            },
-                            "preview_url": track["preview_url"],
-                        }
-                        for track in results["tracks"]["items"]
-                    ]
-                }
-            )
-        return jsonify({"tracks": []})
+        results = sp.search(q=query, type="track", limit=5)
+        if not results or not results["tracks"]["items"]:
+            return jsonify({"tracks": []})
+
+        return jsonify(
+            {
+                "tracks": [
+                    {
+                        "id": track["id"],
+                        "name": track["name"],
+                        "artists": [artist["name"] for artist in track["artists"]],
+                        "album": {"image": track["album"]["images"][0]["url"] if track["album"]["images"] else None},
+                    }
+                    for track in results["tracks"]["items"]
+                ]
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-
-@app.route("/playlist/<playlist_id>")
-def playlist_details(playlist_id: str) -> str:
-    """Show detailed playlist information.
-
-    Args:
-        playlist_id: Spotify playlist ID
-
-    Returns:
-        str: Rendered template
-
-    Raises:
-        SpotifyException: If playlist fetch fails
-    """
-    try:
-        if "token_info" not in session:
-            return redirect(url_for("login"))
-
-        sp = get_spotify()
-        playlist = sp.playlist(playlist_id)
-        tracks = sp.playlist_tracks(playlist_id)
-
-        return render_template("playlist.html", playlist=playlist, tracks=tracks["items"])
-    except SpotifyException as e:
-        return render_template("error.html", error=str(e))
 
 
 @app.route("/add_song", methods=["POST"])
@@ -390,7 +293,7 @@ def admin_panel() -> str | tuple:
         Union[str, tuple]: Admin page or error response
     """
     if "token_info" not in session:
-        return redirect(url_for("login"))
+        return redirect(url_for("index"))
 
     sp = get_spotify()
     current_user = sp.current_user()
@@ -450,6 +353,28 @@ def set_public_playlist() -> tuple:
                 },
             }
         )
+    except SpotifyException as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/playlist/<playlist_id>")
+def playlist_details(playlist_id: str) -> str | tuple:
+    """Show detailed view of a playlist.
+
+    Args:
+        playlist_id: Spotify playlist ID
+
+    Returns:
+        Union[str, tuple]: Playlist details page or error response
+    """
+    if "token_info" not in session:
+        return redirect(url_for("index"))
+
+    try:
+        sp = get_spotify()
+        playlist = sp.playlist(playlist_id)
+        tracks = sp.playlist_tracks(playlist_id)
+        return render_template("playlist.html", playlist=playlist, tracks=tracks["items"])
     except SpotifyException as e:
         return jsonify({"error": str(e)}), 400
 

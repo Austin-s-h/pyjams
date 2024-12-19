@@ -11,17 +11,11 @@
 <body>
     <header class="main-header">
         <div class="header-content">
-            <div class="header-left">
-                <a href="{{ url_for('index') }}" class="logo">PyJams</a>
-            </div>
+            <a href="{{ url_for('index') }}" class="logo">PyJams</a>
             <nav class="header-nav">
                 {% if current_user %}
-                    <a href="{{ url_for('search') }}" class="nav-link">Search</a>
-                    {% if config.PUBLIC_PLAYLIST_ID %}
-                        <a href="{{ url_for('playlist_details', playlist_id=config.PUBLIC_PLAYLIST_ID) }}" class="nav-link">Public Playlist</a>
-                    {% endif %}
                     {% if current_user.id == config.ADMIN_USERNAME %}
-                        <a href="{{ url_for('admin_panel') }}" class="nav-link">Admin</a>
+                    <a href="{{ url_for('admin_panel') }}" class="nav-link">Admin</a>
                     {% endif %}
                     <span class="user-name">{{ current_user.display_name }}</span>
                 {% endif %}

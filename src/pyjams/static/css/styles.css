@@ -469,16 +469,54 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.spotify-player {
-    margin: 1rem 0;
-    border-radius: 12px;
+/* Public Playlist Section - Compact Player */
+.playlist-player-compact {
+    width: 100%;
+    height: 152px;  /* Match exact Spotify iframe height */
+    margin-bottom: 1rem;
+    background: #000;
+    border-radius: 4px;
     overflow: hidden;
 }
 
-.spotify-player iframe {
+.playlist-player-compact iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
     display: block;
+}
+
+/* Full Playlist View Player */
+.spotify-player-full {
+    width: 100%;
+    height: calc(100vh - 300px);  /* Responsive height that works well on most screens */
+    min-height: 600px;            /* Minimum height to ensure good visibility */
+    max-height: 1000px;           /* Maximum height to prevent excessive stretching */
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.spotify-player-full iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* Remove or comment out conflicting styles */
+/* .spotify-player {
+    width: 100%;
+    min-height: 800px;
     background: #000;
 }
+
+.spotify-player iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+    background: #000;
+} */
 
 .playlist-info {
     margin-top: 1rem;
@@ -519,6 +557,167 @@ body {
 
 .view-playlist-btn:hover {
     background: var(--accent-color-dark);
+}
+
+/* Admin Panel Styles */
+.admin-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.admin-header {
+    margin-bottom: 2rem;
+}
+
+.admin-header h1 {
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+}
+
+.admin-grid {
+    display: grid;
+    gap: 2rem;
+}
+
+.section-header {
+    margin-bottom: 1.5rem;
+}
+
+.section-header h2 {
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.section-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Playlist Cards */
+.playlists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.playlist-card {
+    background: var(--secondary-color);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+}
+
+.playlist-card:hover {
+    transform: translateY(-4px);
+}
+
+.current-playlist {
+    border: 2px solid var(--primary-color);
+}
+
+.playlist-card-content {
+    padding: 1.5rem;
+}
+
+.playlist-card-content.empty {
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.playlist-cover {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.playlist-cover-placeholder {
+    width: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background-light);
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 3rem;
+    color: var(--text-secondary);
+}
+
+.playlist-info h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.playlist-meta {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.playlist-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--success-color);
+}
+
+.btn-secondary {
+    background: var(--background-light);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--secondary-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 1rem;
+    }
+
+    .playlists-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .playlist-actions {
+        flex-direction: column;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 /* Admin Panel Styles */
@@ -578,6 +777,8 @@ body {
     grid-template-columns: minmax(0, 1fr) 400px;
     gap: 2rem;
     align-items: start;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .search-header {
@@ -651,9 +852,9 @@ body {
 /* Track Grid */
 .track-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
-    margin-top: 2rem;
+    margin-top: 1rem;
     position: relative;
     z-index: 1;      /* Lower z-index than search results */
 }
@@ -715,36 +916,38 @@ body {
 .add-track-btn {
     width: 100%;
     padding: 0.5rem;
-    border: none;
+    background: #000;
     border-radius: 4px;
-    background: var(--primary-color);
-    color: white;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    overflow: hidden;
+}
+
+.playlist-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.stat-item {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
+    text-align: center;
 }
 
-.add-track-btn:hover {
-    background: var(--success-color);
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
 }
 
-.add-track-btn:disabled {
-    background: var(--text-secondary);
-    cursor: not-allowed;
-}
-
-/* Public Playlist Section */
-.public-playlist-section {
-    position: sticky;
-    top: 5rem;
-    background: var(--background-dark);
-    border-radius: 8px;
-    padding: 1rem;
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .playlist-header {
@@ -783,6 +986,7 @@ body {
     
     .public-playlist-section {
         position: static;
+        height: auto;
         margin-top: 2rem;
     }
     
@@ -843,7 +1047,7 @@ body {
 
 .result-artist {
     font-size: 0.875rem;
-    color: var(--text-secondary);
+    color: var (--text-secondary);
 }
 
 .add-result-btn {
@@ -858,4 +1062,135 @@ body {
 
 .add-result-btn:hover {
     background: rgba(29, 185, 84, 0.1);
+}
+
+/* Playlist View Styles */
+.playlist-view {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.playlist-container {
+    background: var(--secondary-color);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.playlist-header {
+    padding: 2rem;
+    background: linear-gradient(to bottom, rgba(29,185,84,0.3) 0%, var(--secondary-color) 100%);
+}
+
+.playlist-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.playlist-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    max-width: 800px;
+}
+
+.spotify-player {
+    width: 100%;
+    min-height: 800px;
+    background: #000;
+}
+
+.spotify-player iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+    background: #000;
+}
+
+.admin-controls {
+    padding: 1rem 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .playlist-header {
+        padding: 1.5rem;
+    }
+
+    .playlist-header h1 {
+        font-size: 2rem;
+    }
+
+    .spotify-player {
+        min-height: 600px;
+    }
+
+    .admin-controls {
+        padding: 1rem;
+        flex-direction: column;
+    }
+
+    .admin-controls .btn {
+        width: 100%;
+    }
+}
+
+/* Public Playlist Section - Updated Styles */
+.public-playlist-section {
+    position: sticky;
+    top: 5rem;
+    background: var(--secondary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    height: calc(100vh - 7rem); /* Full height minus header and margins */
+    display: flex;
+    flex-direction: column;
+}
+
+.playlist-player-sidebar {
+    flex: 1;
+    width: 100%;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+    min-height: 400px; /* Ensure minimum height for usability */
+}
+
+.playlist-player-sidebar iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.playlist-player-mini {
+    width: 100%;
+    height: 152px;
+    background: #000;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.playlist-player-mini iframe {
+    border: none;
+    width: 100%;
+    height: 100%;
+    display: block;
 }

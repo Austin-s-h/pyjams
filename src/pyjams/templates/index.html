@@ -5,85 +5,92 @@
 {% block content %}
 <div class="search-container">
     <div class="search-layout">
-        <!-- Search Section -->
         <section class="search-section">
-            <div class="search-header">
-                <h1>Search Tracks</h1>
-                <div class="search-input-group">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" 
-                           id="searchInput" 
-                           placeholder="Search for songs..." 
-                           value="{{ query }}"
-                           autocomplete="off"
-                           class="search-input">
-                    <!-- Move search results here, directly under input -->
-                    <div id="searchResults" class="search-results" style="display: none;">
-                        <div class="results-loading" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Searching...
-                        </div>
-                        <div class="results-content"></div>
+            <div class="search-input-group">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" 
+                       id="searchInput" 
+                       placeholder="Search for songs..." 
+                       value="{{ query }}"
+                       autocomplete="off"
+                       class="search-input">
+                <div id="searchResults" class="search-results" style="display: none;">
+                    <div class="results-loading" style="display: none;">
+                        <i class="fas fa-spinner fa-spin"></i> Searching...
                     </div>
+                    <div class="results-content"></div>
                 </div>
             </div>
 
-            <div class="search-results-container">
-                <!-- Only track grid remains here -->
-                {% if tracks %}
-                <div class="track-grid">
-                    {% for track in tracks %}
-                    <div class="track-card">
-                        <div class="track-card-inner">
-                            <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
-                                 alt="Album Art" 
-                                 class="track-image">
-                            <div class="track-info">
-                                <h3 class="track-title">{{ track.name }}</h3>
-                                <p class="artist-name">{{ track.artists[0].name }}</p>
-                                {% if track.preview_url %}
-                                <div class="audio-container">
-                                    <audio controls class="track-preview">
-                                        <source src="{{ track.preview_url }}" type="audio/mpeg">
-                                    </audio>
-                                </div>
-                                {% endif %}
-                                <div class="track-actions">
-                                    <button onclick="addToPublicPlaylist('{{ track.id }}')" 
-                                            class="add-track-btn"
-                                            {% if not config.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
-                                        <i class="fas fa-plus"></i> Add to Public Playlist
-                                    </button>
-                                </div>
+            {% if tracks %}
+            <div class="track-grid">
+                <div class="track-card">
+                    <div class="track-card-inner">
+                        <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
+                             alt="Album Art" 
+                             class="track-image">
+                        <div class="track-info">
+                            <h3 class="track-title">{{ track.name }}</h3>
+                            <p class="artist-name">{{ track.artists[0].name }}</p>
+                            {% if track.preview_url %}
+                            <div class="audio-container">
+                                <audio controls class="track-preview">
+                                    <source src="{{ track.preview_url }}" type="audio/mpeg">
+                                </audio>
+                            </div>
+                            {% endif %}
+                            <div class="track-actions">
+                                <button onclick="addToPublicPlaylist('{{ track.id }}')" 
+                                        class="add-track-btn"
+                                        {% if not config.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
+                                    <i class="fas fa-plus"></i> Add to Public Playlist
+                                </button>
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-                {% endif %}
             </div>
+            {% endif %}
         </section>
 
-        <!-- Public Playlist Section -->
         <section class="public-playlist-section">
             <div class="playlist-header">
                 <h2>Public Playlist</h2>
-                {% if not config.PUBLIC_PLAYLIST_ID and current_user and current_user.id == config.ADMIN_USERNAME %}
-                <a href="{{ url_for('admin_panel') }}" class="admin-link">Set up playlist</a>
+                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
+                <a href="{{ url_for('admin_panel') }}" class="admin-link">Manage</a>
                 {% endif %}
             </div>
             {% if config.PUBLIC_PLAYLIST_ID %}
-            <div class="playlist-player">
-                <iframe src="https://open.spotify.com/embed/playlist/{{ config.PUBLIC_PLAYLIST_ID }}"
+            <div class="playlist-player-sidebar">
+                <iframe src="https://open.spotify.com/embed/playlist/{{ config.PUBLIC_PLAYLIST_ID }}?utm_source=generator&theme=0"
                         width="100%" 
-                        height="380" 
+                        height="100%"
                         frameborder="0" 
-                        allowtransparency="true" 
-                        allow="encrypted-media">
+                        allowfullscreen="" 
+                        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                        loading="lazy">
                 </iframe>
+            </div>
+            <div class="playlist-stats">
+                <div class="stat-item">
+                    <span class="stat-value" id="followerCount">--</span>
+                    <span class="stat-label">Followers</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="trackCount">--</span>
+                    <span class="stat-label">Tracks</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="totalDuration">--</span>
+                    <span class="stat-label">Duration</span>
+                </div>
             </div>
             {% else %}
             <div class="no-playlist-message">
                 <p>No public playlist has been set up yet.</p>
+                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
+                <a href="{{ url_for('admin_panel') }}" class="admin-link">Set up playlist</a>
+                {% endif %}
             </div>
             {% endif %}
         </section>
@@ -180,5 +187,22 @@ document.addEventListener('click', function(e) {
         searchResults.style.display = 'none';
     }
 });
+
+// Add this to your existing JavaScript
+function updatePlaylistStats() {
+    if ('{{ config.PUBLIC_PLAYLIST_ID }}') {
+        fetch(`/api/playlist_stats/{{ config.PUBLIC_PLAYLIST_ID }}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('followerCount').textContent = data.followers;
+                document.getElementById('trackCount').textContent = data.track_count;
+                document.getElementById('totalDuration').textContent = data.duration;
+            })
+            .catch(console.error);
+    }
+}
+
+// Call when page loads
+updatePlaylistStats();
 </script>
 {% endblock %}

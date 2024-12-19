@@ -4,83 +4,147 @@
 
 {% block content %}
 <div class="admin-container">
-    <div class="section-header">
+    <header class="admin-header">
         <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
+    </header>
+
+    {% if error %}
+    <div class="alert alert-error">
+        {{ error }}
     </div>
-    
-    {% if current_public_playlist %}
-    <section class="current-public-section">
-        <div class="section-header">
-            <h2><i class="fas fa-star"></i> Current Public Playlist</h2>
-        </div>
-        <div class="playlist-card current-playlist">
-            {% if current_public_playlist.images %}
-            <img src="{{ current_public_playlist.images[0].url }}" alt="Playlist Cover" class="playlist-image">
-            {% endif %}
-            <div class="playlist-info">
-                <h3>{{ current_public_playlist.name }}</h3>
-                <p>{{ current_public_playlist.tracks.total }} tracks</p>
-                <a href="{{ url_for('playlist_details', playlist_id=current_public_playlist.id) }}" 
-                   class="view-playlist-btn">View Playlist</a>
-            </div>
-        </div>
-    </section>
     {% endif %}
 
-    <section class="select-playlist-section">
-        <div class="section-header">
-            <h2><i class="fas fa-list"></i> Select Public Playlist</h2>
-        </div>
-        <div class="playlist-grid">
-            {% for playlist in playlists %}
-            <div class="playlist-card {% if current_public_playlist and playlist.id == current_public_playlist.id %}current-playlist{% endif %}">
-                <img src="{{ playlist.images[0].url if playlist.images else '/static/default-playlist.png' }}" 
-                     class="playlist-image" 
-                     alt="{{ playlist.name }}">
-                <div class="playlist-info">
-                    <h3 class="playlist-name">{{ playlist.name }}</h3>
-                    <p class="playlist-tracks">{{ playlist.tracks.total }} tracks</p>
-                    <button class="set-public-btn"
-                            onclick="setPublicPlaylist('{{ playlist.id }}')"
-                            {% if current_public_playlist and playlist.id == current_public_playlist.id %}disabled{% endif %}>
-                        {% if current_public_playlist and playlist.id == current_public_playlist.id %}
-                        Current Public Playlist
-                        {% else %}
-                        Set as Public Playlist
-                        {% endif %}
-                    </button>
-                </div>
+    <div class="admin-grid">
+        <!-- Current Public Playlist Section -->
+        <section class="current-public-section">
+            <div class="section-header">
+                <h2>Current Public Playlist</h2>
             </div>
-            {% endfor %}
-        </div>
-    </section>
+            <div class="playlist-card {% if current_public_playlist %}current-playlist{% endif %}">
+                {% if current_public_playlist %}
+                    <div class="playlist-card-content">
+                        {% if current_public_playlist.images %}
+                            <img src="{{ current_public_playlist.images[0].url }}" 
+                                 alt="Current playlist cover"
+                                 class="playlist-cover">
+                        {% else %}
+                            <div class="playlist-cover-placeholder">
+                                <i class="fas fa-music"></i>
+                            </div>
+                        {% endif %}
+                        <div class="playlist-info">
+                            <h3>{{ current_public_playlist.name }}</h3>
+                            <p class="playlist-meta">{{ current_public_playlist.tracks.total }} tracks</p>
+                            <div class="playlist-actions">
+                                <a href="{{ url_for('playlist_details', playlist_id=current_public_playlist.id) }}" 
+                                   class="btn btn-secondary">
+                                    <i class="fas fa-list"></i> View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="playlist-card-content empty">
+                        <div class="playlist-cover-placeholder">
+                            <i class="fas fa-music"></i>
+                        </div>
+                        <div class="playlist-info">
+                            <h3>No Public Playlist Set</h3>
+                            <p>Select a playlist below to set as public</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- Available Playlists Section -->
+        <section class="available-playlists-section">
+            <div class="section-header">
+                <h2>Your Playlists</h2>
+                <p class="section-description">Select a playlist to set as public</p>
+            </div>
+            <div class="playlists-grid">
+                {% for playlist in playlists %}
+                    <div class="playlist-card">
+                        <div class="playlist-card-content">
+                            {% if playlist.images %}
+                                <img src="{{ playlist.images[0].url }}" 
+                                     alt="{{ playlist.name }} cover"
+                                     class="playlist-cover">
+                            {% else %}
+                                <div class="playlist-cover-placeholder">
+                                    <i class="fas fa-music"></i>
+                                </div>
+                            {% endif %}
+                            <div class="playlist-info">
+                                <h3>{{ playlist.name }}</h3>
+                                <p class="playlist-meta">{{ playlist.tracks.total }} tracks</p>
+                                <div class="playlist-actions">
+                                    <form action="{{ url_for('set_public_playlist') }}" 
+                                          method="POST" 
+                                          class="set-public-form">
+                                        <input type="hidden" name="playlist_id" value="{{ playlist.id }}">
+                                        <button type="submit" class="btn btn-primary"></button>
+                                            <i class="fas fa-check"></i> Set as Public
+                                        </button>
+                                    </form>
+                                    <a href="{{ url_for('playlist_details', playlist_id=playlist.id) }}" 
+                                       class="btn btn-secondary">
+                                        <i class="fas fa-list"></i> Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    function setPublicPlaylist(playlistId) {
-        if (!confirm('Are you sure you want to set this as the public playlist?')) return;
-
-        fetch('/admin/set_public_playlist', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `playlist_id=${playlistId}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                alert(data.message);
-                location.reload();
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('.set-public-form');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!confirm('Are you sure you want to set this as the public playlist?')) {
+                return;
             }
-        })
-        .catch(error => {
-            alert('Error setting public playlist');
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to set public playlist');
+                }
+
+                // Show success message
+                const toast = document.createElement('div');
+                toast.className = 'toast toast-success';
+                toast.textContent = data.message;
+                document.body.appendChild(toast);
+                
+                // Refresh the page after a brief delay
+                setTimeout(() => window.location.reload(), 1500);
+                
+            } catch (error) {
+                alert(error.message);
+            }
         });
-    }
+    });
+});
 </script>
 {% endblock %}
