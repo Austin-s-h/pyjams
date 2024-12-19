@@ -68,7 +68,8 @@
                         frameborder="0" 
                         allowfullscreen="" 
                         allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                        loading="lazy">
+                        loading="lazy"
+                        style="transition: opacity 0.3s ease;">
                 </iframe>
             </div>
             <div class="playlist-stats">
@@ -152,11 +153,34 @@ searchInput.addEventListener('input', function(e) {
 });
 
 function refreshPlaylistEmbed() {
-    const playlistFrame = document.querySelector('.playlist-player iframe');
+    const playlistFrame = document.querySelector('.playlist-player-sidebar iframe');
     if (playlistFrame) {
+        // Start fade out
+        playlistFrame.style.opacity = '0';
+        
+        // Refresh the source
         playlistFrame.src = playlistFrame.src;
+        
+        // Wait for the iframe to load before fading in
+        playlistFrame.onload = () => {
+            // Small delay to ensure the content is ready
+            setTimeout(() => {
+                playlistFrame.style.opacity = '1';
+                updatePlaylistStats();
+            }, 100);
+        };
     }
 }
+
+// Add initial load handler for the iframe
+document.addEventListener('DOMContentLoaded', () => {
+    const playlistFrame = document.querySelector('.playlist-player-sidebar iframe');
+    if (playlistFrame) {
+        playlistFrame.onload = () => {
+            playlistFrame.style.opacity = '1';
+        };
+    }
+});
 
 function addToPublicPlaylist(trackId) {
     fetch('/add_song', {
@@ -171,8 +195,9 @@ function addToPublicPlaylist(trackId) {
         if (data.error) {
             alert(data.error);
         } else {
+            // Show success message
             alert(data.message);
-            // Refresh the playlist iframe after successful addition
+            // Refresh the playlist with transition
             refreshPlaylistEmbed();
         }
     })
@@ -204,5 +229,9 @@ function updatePlaylistStats() {
 
 // Call when page loads
 updatePlaylistStats();
+
+// Schedule periodic updates every 30 seconds
+setInterval(updatePlaylistStats, 30000);
+
 </script>
 {% endblock %}

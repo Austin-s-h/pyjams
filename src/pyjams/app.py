@@ -379,6 +379,35 @@ def playlist_details(playlist_id: str) -> str | tuple:
         return jsonify({"error": str(e)}), 400
 
 
+@app.route("/api/playlist_stats/<playlist_id>")
+def playlist_stats(playlist_id):
+    """Get playlist statistics.
+
+    Returns follower count, track count, and total duration.
+    """
+    if "token_info" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    try:
+        sp = get_spotify()
+        playlist = sp.playlist(playlist_id)
+        tracks = sp.playlist_tracks(playlist_id)
+
+        # Calculate total duration in minutes
+        total_ms = sum(item["track"]["duration_ms"] for item in tracks["items"] if item["track"])
+        total_minutes = round(total_ms / (1000 * 60))
+
+        return jsonify(
+            {
+                "followers": playlist["followers"]["total"],
+                "track_count": playlist["tracks"]["total"],
+                "duration": f"{total_minutes} min",
+            }
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @app.errorhandler(SpotifyException)
 def handle_spotify_error(error: SpotifyException) -> tuple:
     """Handle Spotify API errors.
