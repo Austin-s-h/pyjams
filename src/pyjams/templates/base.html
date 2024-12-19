@@ -1,32 +1,40 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>{% block title %}PyJams{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    {% block extra_css %}{% endblock %}
+    <title>{% block title %}PyJams{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <a href="{{ url_for('index') }}">PyJams</a>
-        </div>
-        <div class="nav-links">
-            <a href="{{ url_for('search') }}">Search</a>
-            {% if session.get('token_info') %}
-                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
-                    <a href="{{ url_for('admin_panel') }}">Admin</a>
+    <header class="main-header">
+        <div class="header-content">
+            <div class="header-left">
+                <a href="{{ url_for('index') }}" class="logo">PyJams</a>
+            </div>
+            <nav class="header-nav">
+                {% if current_user %}
+                    <a href="{{ url_for('search') }}" class="nav-link">Search</a>
+                    {% if config.PUBLIC_PLAYLIST_ID %}
+                        <a href="{{ url_for('playlist_details', playlist_id=config.PUBLIC_PLAYLIST_ID) }}" class="nav-link">Public Playlist</a>
+                    {% endif %}
+                    {% if current_user.id == config.ADMIN_USERNAME %}
+                        <a href="{{ url_for('admin_panel') }}" class="nav-link">Admin</a>
+                    {% endif %}
+                    <span class="user-name">{{ current_user.display_name }}</span>
                 {% endif %}
-            {% endif %}
+            </nav>
         </div>
-    </nav>
+    </header>
 
-    <main class="container">
+    <main class="main-content">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="footer">
-        <p>PyJams - A Spotify Playlist Manager</p>
+    <footer class="main-footer">
+        <p>PyJams - A Collaborative Spotify Playlist Manager</p>
     </footer>
 
     {% block scripts %}{% endblock %}

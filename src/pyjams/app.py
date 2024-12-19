@@ -1,30 +1,25 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, g
-from typing import Optional, Dict, Any
-import spotipy
+from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy.exceptions import SpotifyException
+from typing import Optional
 import os
 
 class Config:
     SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
     SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
-    SECRET_KEY = os.environ.get('SECRET_KEY', os.urandom(24))
-    BASE_URL = 'http://127.0.0.1:4884'
-    # Add admin configuration
     ADMIN_USERNAME = os.environ.get('SPOTIFY_ADMIN_USERNAME')
     PUBLIC_PLAYLIST_ID = os.environ.get('SPOTIFY_PUBLIC_PLAYLIST_ID')
+    SECRET_KEY = os.environ.get('SECRET_KEY', os.urandom(24))
+    BASE_URL = 'http://127.0.0.1:4884'
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
 def init_spotify_oauth() -> SpotifyOAuth:
-    """Initialize Spotify OAuth with proper configuration"""
     if not all([app.config['SPOTIFY_CLIENT_ID'], app.config['SPOTIFY_CLIENT_SECRET']]):
-        raise SpotifyException(
-            http_status=500,
-            code=-1,
-            msg="Missing Spotify client credentials. Please check your environment variables."
-        )
+        raise SpotifyException(http_status=500, code=-1, 
+                             msg="Missing Spotify client credentials")
     
     return SpotifyOAuth(
         client_id=app.config['SPOTIFY_CLIENT_ID'],
@@ -32,58 +27,51 @@ def init_spotify_oauth() -> SpotifyOAuth:
         redirect_uri=f"{app.config['BASE_URL']}/callback",
         scope='playlist-modify-public playlist-modify-private playlist-read-private',
         cache_path=None,
-        show_dialog=True,
-        open_browser=False
+        show_dialog=True
     )
+
+def get_spotify() -> Spotify:
+    if not hasattr(g, 'spotify'):
+        oauth = init_spotify_oauth()
+        token_info = session.get('token_info')
+        
+        if not token_info:
+            raise SpotifyException(http_status=401, code=-1, msg="No token info found")
+            
+        if oauth.is_token_expired(token_info):
+            token_info = oauth.refresh_access_token(token_info['refresh_token'])
+            session['token_info'] = token_info
+            
+        g.spotify = Spotify(auth=token_info['access_token'])
+    return g.spotify
 
 @app.before_request
 def before_request():
-    """Ensure consistent URL scheme"""
-    if not request.is_secure and not app.debug:  # Use app.debug instead of app.env
-        url = request.url.replace('http://', 'https://', 1)
-        return redirect(url, code=301)
-
-def get_spotify() -> spotipy.Spotify:
-    """Get or create Spotify client with proper token management"""
-    if not hasattr(g, 'spotify'):
+    g.current_user = None
+    if 'token_info' in session:
         try:
-            oauth = init_spotify_oauth()
-            token_info = session.get('token_info', None)
-            
-            if not token_info:
-                raise SpotifyException(
-                    http_status=401,
-                    code=-1,
-                    msg="No token info found",
-                )
-                
-            if oauth.is_token_expired(token_info):
-                token_info = oauth.refresh_access_token(token_info['refresh_token'])
-                session['token_info'] = token_info
-                
-            g.spotify = spotipy.Spotify(auth=token_info['access_token'])
-        except Exception as e:
-            raise SpotifyException(
-                http_status=500,
-                code=-1,
-                msg=f"Failed to initialize Spotify client: {str(e)}"
-            )
-    return g.spotify
+            sp = get_spotify()
+            g.current_user = sp.current_user()
+        except:
+            session.pop('token_info', None)
 
+@app.context_processor
+def utility_processor():
+    return {
+        'current_user': getattr(g, 'current_user', None),
+        'config': app.config
+    }
+
+# Basic routes
 @app.route('/')
 def index():
-    try:
-        if 'token_info' not in session:
-            return render_template('login.html')
-            
-        sp = get_spotify()
-        current_user = sp.current_user()
-        playlists = sp.current_user_playlists()
-        return render_template('index.html', 
-                             user=current_user, 
-                             playlists=playlists)
-    except SpotifyException as e:
-        return render_template('login.html', error=str(e))
+    if 'token_info' not in session:
+        return render_template('login.html')
+    
+    sp = get_spotify()
+    return render_template('index.html', 
+                         user=sp.current_user(), 
+                         playlists=sp.current_user_playlists())
 
 @app.route('/login')
 def login():
@@ -114,49 +102,29 @@ def callback():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+# Playlist management routes
 @app.route('/search')
 def search():
-    """Enhanced search interface with Spotify-like experience"""
-    try:
-        if 'token_info' not in session:
-            return redirect(url_for('login'))
-            
-        sp = get_spotify()
-        query = request.args.get('q', '')
-        search_type = request.args.get('type', 'track,artist,album')
+    if 'token_info' not in session:
+        return redirect(url_for('login'))
         
-        if query:
-            results = sp.search(
-                q=query,
-                type=search_type,
-                market='from_token',
-                limit=12
-            )
-            
-            # Get public playlist info
-            public_playlist = None
-            if app.config['PUBLIC_PLAYLIST_ID']:
-                public_playlist = sp.playlist(app.config['PUBLIC_PLAYLIST_ID'])
-            
-            return render_template(
-                'search.html',
-                query=query,
-                results=results,
-                search_type=search_type,
-                public_playlist=public_playlist
-            )
-        else:
-            # Show featured content when no search
-            featured = sp.featured_playlists()
-            new_releases = sp.new_releases()
-            return render_template(
-                'search.html',
-                featured=featured,
-                new_releases=new_releases
-            )
-            
-    except SpotifyException as e:
-        return render_template('error.html', error=str(e))
+    sp = get_spotify()
+    query = request.args.get('q', '')
+    search_type = request.args.get('type', 'track,artist,album')
+    
+    if not query:
+        return render_template('search.html',
+                            featured=sp.featured_playlists(),
+                            new_releases=sp.new_releases())
+    
+    results = sp.search(q=query, type=search_type, limit=12)
+    public_playlist = sp.playlist(app.config['PUBLIC_PLAYLIST_ID']) if app.config['PUBLIC_PLAYLIST_ID'] else None
+    
+    return render_template('search.html',
+                         query=query,
+                         results=results,
+                         search_type=search_type,
+                         public_playlist=public_playlist)
 
 @app.route('/playlist/<playlist_id>')
 def playlist_details(playlist_id):
@@ -230,33 +198,22 @@ def remove_song():
     except SpotifyException as e:
         return jsonify({'error': str(e)}), 400
 
+# Admin routes
 @app.route('/admin')
 def admin_panel():
-    """Admin panel to manage public playlist"""
-    try:
-        if 'token_info' not in session:
-            return redirect(url_for('login'))
-            
-        sp = get_spotify()
-        current_user = sp.current_user()
+    if 'token_info' not in session:
+        return redirect(url_for('login'))
         
-        # Only allow admin access
-        if current_user['id'] != app.config['ADMIN_USERNAME']:
-            return jsonify({'error': 'Unauthorized'}), 403
-            
-        playlists = sp.user_playlists(current_user['id'])
-        current_public_playlist = None
+    sp = get_spotify()
+    current_user = sp.current_user()
+    
+    if current_user['id'] != app.config['ADMIN_USERNAME']:
+        return jsonify({'error': 'Unauthorized'}), 403
         
-        if app.config['PUBLIC_PLAYLIST_ID']:
-            current_public_playlist = sp.playlist(app.config['PUBLIC_PLAYLIST_ID'])
-            
-        return render_template(
-            'admin.html',
-            playlists=playlists['items'],
-            current_public_playlist=current_public_playlist
-        )
-    except SpotifyException as e:
-        return render_template('error.html', error=str(e))
+    return render_template('admin.html',
+                         playlists=sp.user_playlists(current_user['id'])['items'],
+                         current_public_playlist=sp.playlist(app.config['PUBLIC_PLAYLIST_ID']) 
+                         if app.config['PUBLIC_PLAYLIST_ID'] else None)
 
 @app.route('/admin/set_public_playlist', methods=['POST'])
 def set_public_playlist():
@@ -291,38 +248,6 @@ def set_public_playlist():
         })
     except SpotifyException as e:
         return jsonify({'error': str(e)}), 400
-
-@app.route('/admin/playlists')
-def list_playlists():
-    """List all playlists with their IDs"""
-    try:
-        if 'token_info' not in session:
-            return redirect(url_for('login'))
-            
-        sp = get_spotify()
-        current_user = sp.current_user()
-        
-        # Only allow admin access
-        if current_user['id'] != app.config['ADMIN_USERNAME']:
-            return jsonify({'error': 'Unauthorized'}), 403
-            
-        # Get all playlists the user has access to
-        playlists = []
-        results = sp.current_user_playlists(limit=50)
-        
-        while results:
-            playlists.extend(results['items'])
-            if results['next']:
-                results = sp.next(results)
-            else:
-                break
-
-        return render_template('admin_playlists.html', 
-                             playlists=playlists,
-                             current_user=current_user,
-                             current_public_playlist_id=app.config['PUBLIC_PLAYLIST_ID'])
-    except SpotifyException as e:
-        return render_template('error.html', error=str(e))
 
 @app.errorhandler(SpotifyException)
 def handle_spotify_error(error):

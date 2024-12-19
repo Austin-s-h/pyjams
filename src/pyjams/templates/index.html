@@ -1,17 +1,85 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add Song to Playlist</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <h1>Add Song to Playlist</h1>
-    <form action="/add_song" method="post">
-        <label for="song_name">Song Name:</label>
-        <input type="text" id="song_name" name="song_name"><br><br>
-        <label for="artist_name">Artist Name:</label>
-        <input type="text" id="artist_name" name="artist_name"><br><br>
-        <input type="submit" value="Add Song">
-    </form>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}PyJams - Home{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="welcome-banner">
+        <h1>Welcome, {{ user.display_name }}!</h1>
+        <p>What would you like to listen to today?</p>
+    </div>
+
+    <div class="main-content-grid">
+        <section class="search-section">
+            <div class="section-header">
+                <h2><i class="fas fa-search"></i> Quick Search</h2>
+            </div>
+            <form action="{{ url_for('search') }}" method="GET" class="search-form">
+                <div class="search-input-group">
+                    <input type="text" 
+                           name="q" 
+                           placeholder="Search songs, artists, or albums..." 
+                           required
+                           class="search-input">
+                    <button type="submit" class="search-button">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        {% if public_playlist %}
+        <section class="featured-section">
+            <div class="section-header">
+                <h2><i class="fas fa-star"></i> Featured Playlist</h2>
+            </div>
+            <div class="playlist-card">
+                <div class="playlist-cover">
+                    {% if public_playlist.images %}
+                    <img src="{{ public_playlist.images[0].url }}" alt="{{ public_playlist.name }}">
+                    {% else %}
+                    <div class="placeholder-cover">
+                        <i class="fas fa-music"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="playlist-info">
+                    <h3>{{ public_playlist.name }}</h3>
+                    <p class="playlist-description">{{ public_playlist.description or 'Collaborative playlist' }}</p>
+                    <div class="playlist-stats">
+                        <span><i class="fas fa-music"></i> {{ public_playlist.tracks.total }} tracks</span>
+                        <a href="{{ url_for('playlist_details', playlist_id=public_playlist.id) }}" 
+                           class="view-playlist-btn">View Playlist</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if playlists %}
+        <section class="your-playlists-section">
+            <div class="section-header">
+                <h2><i class="fas fa-list"></i> Your Playlists</h2>
+            </div>
+            <div class="playlist-grid">
+                {% for playlist in playlists['items'][:6] if playlist %}
+                <div class="playlist-mini-card">
+                    {% if playlist.images %}
+                    <img src="{{ playlist.images[0].url }}" alt="{{ playlist.name }}">
+                    {% else %}
+                    <div class="placeholder-cover">
+                        <i class="fas fa-music"></i>
+                    </div>
+                    {% endif %}
+                    <div class="playlist-mini-info">
+                        <h4>{{ playlist.name }}</h4>
+                        <p>{{ playlist.tracks.total }} tracks</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

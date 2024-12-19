@@ -1,71 +1,115 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>{{ playlist.name }} - PyJams</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="playlist-container">
-        <div class="playlist-header">
+{% extends "base.html" %}
+
+{% block title %}{{ playlist.name }} - PyJams{% endblock %}
+
+{% block content %}
+<div class="playlist-detail-container">
+    <section class="playlist-hero">
+        <div class="playlist-hero-content">
             {% if playlist.images %}
-            <img src="{{ playlist.images[0].url }}" alt="Playlist Cover" class="playlist-cover">
+            <img src="{{ playlist.images[0].url }}" alt="{{ playlist.name }}" class="playlist-hero-image">
+            {% else %}
+            <div class="playlist-hero-placeholder">
+                <i class="fas fa-music"></i>
+            </div>
             {% endif %}
-            <div class="playlist-info">
+            <div class="playlist-hero-info">
+                <span class="playlist-type">PLAYLIST</span>
                 <h1>{{ playlist.name }}</h1>
-                <p>{{ playlist.description }}</p>
-                <p>{{ playlist.tracks.total }} tracks</p>
-                <p>Created by {{ playlist.owner.display_name }}</p>
+                <p class="playlist-description">{{ playlist.description or 'No description available' }}</p>
+                <div class="playlist-meta">
+                    <span><i class="fas fa-user"></i> {{ playlist.owner.display_name }}</span>
+                    <span><i class="fas fa-music"></i> {{ playlist.tracks.total }} tracks</span>
+                </div>
             </div>
         </div>
+    </section>
 
-        <div class="playlist-tracks">
+    <section class="playlist-tracks-section">
+        <div class="tracks-header">
+            <div class="track-number">#</div>
+            <div class="track-title">TITLE</div>
+            <div class="track-album">ALBUM</div>
+            <div class="track-duration">DURATION</div>
+            <div class="track-actions"></div>
+        </div>
+        
+        <div class="tracks-list">
             {% for item in tracks %}
-            <div class="track-item">
-                {% if item.track.album.images %}
-                <img src="{{ item.track.album.images[-1].url }}" alt="Album Art" class="track-art">
-                {% endif %}
-                <div class="track-info">
-                    <h3>{{ item.track.name }}</h3>
-                    <p>{{ item.track.artists[0].name }}</p>
-                    <p>{{ item.track.album.name }}</p>
+            <div class="track-row" data-track-id="{{ item.track.id }}">
+                <div class="track-number">{{ loop.index }}</div>
+                <div class="track-title">
+                    <div class="track-title-wrapper">
+                        {% if item.track.album.images %}
+                        <img src="{{ item.track.album.images[-1].url }}" alt="{{ item.track.name }}" class="track-thumb">
+                        {% endif %}
+                        <div class="track-text">
+                            <span class="track-name">{{ item.track.name }}</span>
+                            <span class="track-artist">{{ item.track.artists | map(attribute='name') | join(', ') }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="track-album">{{ item.track.album.name }}</div>
+                <div class="track-duration">{{ (item.track.duration_ms / 1000) | int // 60 }}:{{ '%02d' | format((item.track.duration_ms / 1000) | int % 60) }}</div>
+                <div class="track-actions">
                     {% if item.track.preview_url %}
-                    <audio controls>
-                        <source src="{{ item.track.preview_url }}" type="audio/mpeg">
-                    </audio>
+                    <button class="preview-btn" onclick="togglePreview(this, '{{ item.track.preview_url }}')">
+                        <i class="fas fa-play"></i>
+                    </button>
                     {% endif %}
-                    <button onclick="removeSong('{{ item.track.id }}', '{{ playlist.id }}')" class="remove-btn">
-                        Remove from Playlist
+                    <button class="remove-btn" onclick="removeSong('{{ item.track.id }}', '{{ playlist.id }}')">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
             </div>
             {% endfor %}
         </div>
-    </div>
+    </section>
+</div>
 
-    <script>
-    function removeSong(trackId, playlistId) {
-        if (!confirm('Are you sure you want to remove this song?')) return;
+{% block scripts %}
+<script>
+function togglePreview(btn, url) {
+    const icon = btn.querySelector('i');
+    const audio = btn.audioElement || new Audio(url);
+    btn.audioElement = audio;
 
-        fetch('/remove_song', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `track_id=${trackId}&playlist_id=${playlistId}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
-            } else {
-                alert(data.message);
-                location.reload();
-            }
-        })
-        .catch(error => {
-            alert('Error removing song from playlist');
-        });
+    if (audio.paused) {
+        audio.play();
+        icon.className = 'fas fa-pause';
+    } else {
+        audio.pause();
+        icon.className = 'fas fa-play';
     }
-    </script>
-</body>
-</html>
+
+    audio.onended = () => {
+        icon.className = 'fas fa-play';
+    };
+}
+
+function removeSong(trackId, playlistId) {
+    if (!confirm('Are you sure you want to remove this song?')) return;
+
+    fetch('/remove_song', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `track_id=${trackId}&playlist_id=${playlistId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(data.message);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error removing song from playlist');
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

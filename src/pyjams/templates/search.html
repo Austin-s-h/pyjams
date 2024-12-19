@@ -1,49 +1,68 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>PyJams - Search</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    <div class="search-container">
+{% extends "base.html" %}
+
+{% block title %}PyJams - Search{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <section class="search-section">
         <h1>Search Tracks</h1>
         <form action="{{ url_for('search') }}" method="GET" class="search-form">
-            <input type="text" name="q" value="{{ query }}" placeholder="Search for songs..." required>
-            <button type="submit">Search</button>
+            <div class="search-input-group">
+                <input type="text" 
+                       name="q" 
+                       value="{{ query }}" 
+                       placeholder="Search for songs, artists, or albums..." 
+                       required
+                       class="search-input">
+                <button type="submit" class="search-button">Search</button>
+            </div>
         </form>
+    </section>
 
-        {% if tracks %}
-        <div class="results">
+    {% if tracks %}
+    <section class="results-section">
+        <div class="track-grid">
             {% for track in tracks %}
-            <div class="track-item">
-                <img src="{{ track.album.images[0].url if track.album.images else '' }}" alt="Album Art" class="album-art">
+            <div class="track-card">
+                <img src="{{ track.album.images[0].url if track.album.images else '' }}" 
+                     alt="Album Art" 
+                     class="track-image">
                 <div class="track-info">
                     <h3>{{ track.name }}</h3>
-                    <p>{{ track.artists[0].name }} - {{ track.album.name }}</p>
+                    <p class="artist-name">{{ track.artists[0].name }}</p>
+                    <p class="album-name">{{ track.album.name }}</p>
                     {% if track.preview_url %}
-                    <audio controls>
+                    <audio controls class="track-preview">
                         <source src="{{ track.preview_url }}" type="audio/mpeg">
                     </audio>
                     {% endif %}
-                    <div class="playlist-selector">
+                    <div class="track-actions">
                         <select class="playlist-select" data-track-id="{{ track.id }}">
                             <option value="">Select playlist...</option>
                             {% for playlist in playlists %}
                             <option value="{{ playlist.id }}">{{ playlist.name }}</option>
                             {% endfor %}
                         </select>
-                        <button onclick="addToPlaylist(this)" data-track-id="{{ track.id }}">Add to Playlist</button>
+                        <button onclick="addToPlaylist(this)" 
+                                data-track-id="{{ track.id }}"
+                                class="add-track-btn">
+                            Add to Playlist
+                        </button>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
-        {% elif query %}
+    </section>
+    {% elif query %}
+    <div class="no-results">
         <p>No results found for "{{ query }}"</p>
-        {% endif %}
     </div>
+    {% endif %}
+</div>
 
-    <script>
+{% block scripts %}
+<script>
     function addToPlaylist(button) {
         const trackId = button.dataset.trackId;
         const select = button.previousElementSibling;
@@ -73,6 +92,6 @@
             alert('Error adding song to playlist');
         });
     }
-    </script>
-</body>
-</html>
+</script>
+{% endblock %}
+{% endblock %}
