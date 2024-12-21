@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PyJams{% endblock %}</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -13,11 +13,11 @@
         <div class="header-content">
             <a href="{{ url_for('index') }}" class="logo">PyJams</a>
             <nav class="header-nav">
-                {% if current_user %}
-                    {% if current_user.id == config.ADMIN_USERNAME %}
+                {% if request.session.get('token_info') %}
+                    {% if request.session.get('admin') %}
                     <a href="{{ url_for('admin_panel') }}" class="nav-link">Admin</a>
                     {% endif %}
-                    <span class="user-name">{{ current_user.display_name }}</span>
+                    <span class="user-name">{{ request.session.get('user_name', '') }}</span>
                 {% endif %}
             </nav>
         </div>

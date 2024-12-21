@@ -3,9 +3,15 @@ authors = [
   {name = "Austin Hovland", email = "austin@sansterbioanalytics.com"},
 ]
 dependencies = [
-  "flask>=3.1.0",
-  "requests>=2.32.3",
+  "fastapi>=0.110.0",
+  "python-multipart>=0.0.9",
+  "sqlmodel>=0.0.16",
+  "uvicorn>=0.27.1",
+  "jinja2>=3.1.3",
   "spotipy>=2.24.0",
+  "python-jose[cryptography]>=3.3.0",
+  "python-dotenv>=1.0.1",
+  "itsdangerous>=2.2.0",
 ]
 description = "Add your description here"
 name = "pyjams"
@@ -14,7 +20,7 @@ requires-python = ">=3.12"
 version = "0.1.0"
 
 [project.scripts]
-pyjams = "pyjams:main"
+pyjams = "pyjams.main:start"
 
 [build-system]
 build-backend = "hatchling.build"
@@ -78,3 +84,6 @@ skip-magic-trailing-comma = false
 [tool.ruff.isort]
 combine-as-imports = true
 known-first-party = ["pyjams"]
+
+[tool.poetry.dependencies]
+flask-sqlalchemy = "^3.1.1"

@@ -23,6 +23,18 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    line-height: 1.6;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.container {
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
 }
 
 /* Header Styles */

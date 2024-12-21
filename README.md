@@ -2,6 +2,12 @@
 
 A Flask web application that allows users to manage Spotify playlists collaboratively. Perfect for offices, events, or any shared space where music brings people together.
 
+Needs some updates:
+1. Refactor such that there is a guest mode where people can still contribute to the selected playlist
+    This requires a lot of changes, so let's just focus on this
+2. Switch from flask to a production-ish server?
+3. Figure out hosting and quick deployments.
+
 ## Features
 
 - 🔐 Secure Spotify OAuth Authentication
@@ -22,11 +28,15 @@ uv sync --all-extras
 
 3. Set up your environment variables:
 
+Save as .env or load into your shell. Right now, this is used to set the application that you want to authorize Spotify with,
+but I am wondering if these permissions aren't necessary for every user to configure.
+
+Determine who is going to be the administrator and retrieve their public Spotify ID from https://www.spotify.com/us/account/profile/
+
 ```bash
 export SPOTIFY_CLIENT_ID="your_client_id"
 export SPOTIFY_CLIENT_SECRET="your_client_secret"
-export SECRET_KEY="your_flask_secret_key"
-export ADMIN_USERNAME="your_spotify_username"
+export SPOTIFY_ADMIN_USERNAME="your_spotify_username" # typically all numerical
 export PUBLIC_PLAYLIST_ID="your_playlist_id"  # Optional
 ```
 
@@ -35,6 +45,9 @@ export PUBLIC_PLAYLIST_ID="your_playlist_id"  # Optional
 ```bash
 uv run src/pyjams/app.py
 ```
+
+5. Run production server
+uvicorn pyjams.app:app --host 127.0.0.1 --port 4884 --workers 1
 
 ## Development
 
