@@ -1,4 +1,136 @@
 .featured-playlist {
+.search-results {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.track-card {
+    display: grid;
+    grid-template-columns: 40px 1fr auto auto;
+    align-items: center;
+    gap: 16px;
+    padding: 8px 16px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.track-card:hover {
+    background-color: #f8f9fa;
+}
+
+.track-card img {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+}
+
+.track-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.track-title {
+    font-weight: 500;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-details {
+    color: #6c757d;
+    font-size: 0.875rem;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.track-album {
+    color: #6c757d;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.track-duration {
+    color: #6c757d;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.btn-add {
+    padding: 4px 12px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.btn-add:hover {
+    transform: scale(1.05);
+}
+
+.results-empty {
+    padding: 16px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.results-loading {
+    padding: 16px;
+    text-align: center;
+    color: #6c757d;
+}
+// ...existing code...
+
+.search-results .track-card {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    gap: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.search-results .track-card img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.search-results .track-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-results .track-title {
+    font-size: 14px;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-results .track-artist {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+}
+
+.search-results .track-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-results .btn-add {
+    padding: 4px 8px;
+    font-size: 12px;
+}
 :root {
     --primary-color: #1DB954;
     --primary-dark: #1aa34a;

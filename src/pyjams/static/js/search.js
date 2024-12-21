@@ -41,6 +41,8 @@ searchInput.addEventListener('input', function(e) {
                             <div class="result-info">
                                 <div class="result-name">${track.name}</div>
                                 <div class="result-artist">${track.artists.join(', ')}</div>
+                                <div class="result-album">${track.album.name}</div>
+                                <div class="result-duration">${formatDuration(track.duration_ms)}</div>
                             </div>
                             <button onclick="addToPublicPlaylist('${track.id}')" class="add-result-btn">
                                 <i class="fas fa-plus"></i>
@@ -130,3 +132,22 @@ function updatePlaylistStats() {
 document.addEventListener('DOMContentLoaded', () => {
     updatePlaylistStats();
 });
+
+function formatDuration(ms) {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function createTrackCard(track) {
+    const template = document.querySelector('#track-card-template');
+    const card = template.content.cloneNode(true);
+    
+    card.querySelector('.track-image').src = track.album.image;
+    card.querySelector('.track-title').textContent = track.name;
+    card.querySelector('.track-artist').textContent = track.artists.join(', ');
+    card.querySelector('.track-album').textContent = track.album.name;
+    card.querySelector('.track-duration').textContent = formatDuration(track.duration_ms);
+    
+    // ...rest of the existing function...
+}

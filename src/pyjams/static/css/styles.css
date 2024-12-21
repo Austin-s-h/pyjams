@@ -1,3 +1,9 @@
+/* Consider splitting into multiple files: */
+/* - base.css (variables, reset, global styles) */
+/* - components.css (cards, buttons, forms) */
+/* - layout.css (grid, containers) */
+/* - pages.css (page-specific styles) */
+
 :root {
     --primary-color: #1DB954;
     --primary-dark: #1aa34a;
@@ -5,8 +11,8 @@
     --text-primary: #FFFFFF;
     --text-secondary: #B3B3B3;
     --background-base: #121212;
-    --background-highlight: #1e1e1e;  /* Lightened for better contrast */
-    --background-press: #2a2a2a;      /* Lightened for better contrast */
+    --background-highlight: #1e1e1e;
+    --background-press: #2a2a2a;
     --background-elevated-base: #242424;
     --background-elevated-highlight: #2e2e2e;
     --essential-base: #FFFFFF;
@@ -36,12 +42,13 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
+    background-color: #f8f9fa;
 }
 
 .container {
     width: 100%;
-    padding-right: 15px;
-    padding-left: 15px;
+    padding-right: 2rem;
+    padding-left: 2rem;
     margin-right: auto;
     margin-left: auto;
 }
@@ -53,6 +60,7 @@ body {
     position: fixed;
     width: 100%;
     top: 0;
+    left: 0;
     z-index: 1000;
 }
 
@@ -62,6 +70,7 @@ body {
     align-items: center;
     max-width: 1200px;
     margin: 0 auto;
+    padding: 0 1rem;
 }
 
 .logo {
@@ -94,8 +103,9 @@ body {
 
 /* Main Content */
 .main-content {
-    padding-top: 4rem;
-    min-height: calc(100vh - 60px);
+    padding-top: 5rem; /* Increased from 4rem */
+    margin-top: 1rem;
+    min-height: calc(100vh - 80px); /* Adjusted to account for header height */
     flex: 1;
     max-width: 1200px;
     margin: 0 auto;
@@ -288,6 +298,8 @@ body {
 .playlist-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 4px 12px var(--box-shadow);
+    transform: translateY(-2px);
+    transition: transform 0.2s;
 }
 
 .playlist-card-content {
@@ -917,6 +929,7 @@ body {
     max-height: 400px;
     overflow-y: auto;
     margin-top: 4px;  /* Small gap between input and results */
+    transition: all 0.3s ease;
 }
 
 /* Results Container */
@@ -958,6 +971,7 @@ body {
     object-fit: cover;
     border-radius: 4px;
     margin-bottom: 0.75rem;
+    object-fit: cover;
 }
 
 .track-info {
@@ -1443,6 +1457,7 @@ body {
     background: #4CAF50;
     color: white;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 1050;
 }
 
 .notification.error {
@@ -1510,4 +1525,58 @@ body {
 .privacy-policy p {
     line-height: 1.6;
     color: #4a4a4a;
+}
+
+/* Minimal custom styles to complement Bootstrap */
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
+/* Spotify iframe container */
+.spotify-embed {
+    background: #000;
+    border-radius: .25rem;
+    overflow: hidden;
+}
+
+/* Search results transition */
+#searchResults {
+    transition: all 0.3s ease;
+}
+
+/* Track image size control */
+.track-image {
+    object-fit: cover;
+}
+
+/* Notification styling */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+}
+
+/* Admin panel tweaks */
+.playlist-card:hover {
+    transform: translateY(-2px);
+    transition: transform 0.2s;
+}
+
+@media (max-width: 768px) {
+    .main-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .header-content {
+        padding: 0 0.5rem;
+    }
+    
+    .main-content {
+        padding-top: 4rem;
+    }
 }

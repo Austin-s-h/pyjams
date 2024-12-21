@@ -47,6 +47,7 @@
                 <h2>Your Playlists</h2>
                 <div class="playlist-cards">
                     {% for playlist in playlists %}
+                        <!-- Consider creating reusable playlist card component -->
                         <div class="playlist-card {{ 'is-current' if playlist.id == settings.PUBLIC_PLAYLIST_ID }}">
                             <a href="{{ url_for('playlist_details', playlist_id=playlist.id) }}" class="playlist-card-content">
                                 <img src="{{ playlist.images[0].url if playlist.images else '' }}" 

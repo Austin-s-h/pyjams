@@ -223,7 +223,11 @@ async def search_tracks(q: str, request: Request):
                 "id": track["id"],
                 "name": track["name"],
                 "artists": [artist["name"] for artist in track["artists"]],
-                "album": {"image": track["album"]["images"][0]["url"] if track["album"]["images"] else None},
+                "album": {
+                    "name": track["album"]["name"],
+                    "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
+                },
+                "duration_ms": track["duration_ms"],
             }
             for track in results["tracks"]["items"]
         ]

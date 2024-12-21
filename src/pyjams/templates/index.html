@@ -2,20 +2,17 @@
 
 {% block title %}PyJams - Collaborative Playlist{% endblock %}
 
-{% block extra_head %}
-<link rel="stylesheet" href="{{ url_for('static', path='css/playlist.css') }}">
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid py-4">
+<div class="container py-4">
     <!-- Featured Playlist Section -->
-    <section class="featured-playlist">
-        <div class="row">
-            <div class="col-lg-8">
-                {% if settings.PUBLIC_PLAYLIST_ID %}
-                <div class="playlist-embed-container">
-                    <iframe src="https://open.spotify.com/embed/playlist/{{ settings.PUBLIC_PLAYLIST_ID }}?utm_source=generator&theme=0"
-                            width="100%" 
+    <div class="row mb-4">
+        <!-- Consider splitting this into a partial template -->
+        <div class="col-lg-8">
+            {% if settings.PUBLIC_PLAYLIST_ID %}
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <iframe src="https://open.spotify.com/embed/playlist/{{ settings.PUBLIC_PLAYLIST_ID }}?utm_source=generator"
+                            class="w-100"
                             height="352"
                             frameborder="0" 
                             allowfullscreen="" 
@@ -24,95 +21,124 @@
                     </iframe>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <div class="playlist-stats-card">
-                    <h3 class="h5 mb-4">Playlist Statistics</h3>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <i class="fas fa-users"></i>
-                            <span class="stat-value" id="followerCount">--</span>
-                            <span class="stat-label">Followers</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-music"></i>
-                            <span class="stat-value" id="trackCount">--</span>
-                            <span class="stat-label">Tracks</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-clock"></i>
-                            <span class="stat-value" id="totalDuration">--</span>
-                            <span class="stat-label">Duration</span>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <div class="no-playlist-alert">
-                    <p>No public playlist has been set up yet.</p>
+            {% else %}
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body text-center">
+                    <p class="mb-0">No public playlist has been set up yet.</p>
                     {% if request.session.get('admin') %}
-                    <a href="{{ url_for('admin_panel') }}" class="btn btn-primary">Set up playlist</a>
+                    <a href="{{ url_for('admin_panel') }}" class="btn btn-primary mt-2">Set up playlist</a>
                     {% endif %}
                 </div>
-                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title">Playlist Statistics</h5>
+                    <div class="row text-center g-3">
+                        <div class="col-4">
+                            <div class="border-end border-secondary">
+                                <h6 class="mb-1" id="followerCount">--</h6>
+                                <small class="text-light-50">Followers</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end border-secondary">
+                                <h6 class="mb-1" id="trackCount">--</h6>
+                                <small class="text-light-50">Tracks</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div>
+                                <h6 class="mb-1" id="totalDuration">--</h6>
+                                <small class="text-light-50">Duration</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </section>
+    </div>
 
+    <!-- Consider extracting search section to a component -->
     <!-- Search Section -->
-    <section class="search-section">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="search-container">
-                    <div class="search-input-group">
-                        <i class="fas fa-search search-icon"></i>
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-8">
+            <div class="card bg-dark text-light border-secondary shadow-sm">
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
                         <input type="text" 
                                id="searchInput" 
+                               class="form-control"
                                placeholder="Search for songs to add..." 
                                value="{{ query }}"
-                               autocomplete="off"
-                               class="form-control search-input">
+                               autocomplete="off">
                     </div>
-                    <div id="searchResults" class="search-results" style="display: none;">
-                        <div class="results-loading" style="display: none;">
-                            <i class="fas fa-spinner fa-spin"></i> Searching...
+                    <div id="searchResults" class="list-group mt-2" style="display: none;">
+                        <div class="results-loading text-center p-2" style="display: none;">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            Searching...
                         </div>
                         <div class="results-content"></div>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
 
     <!-- History & Stats Section -->
-    <section class="history-stats-section">
-        <div class="row g-4">
-            <div class="col-md-6">
-                <div class="stats-card">
-                    <h4>Recent Activity</h4>
-                    <div class="activity-placeholder">
-                        <p>Recent additions and updates will appear here</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="stats-card">
-                    <h4>Top Contributors</h4>
-                    <div class="contributors-placeholder">
-                        <p>Most active contributors will appear here</p>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card bg-dark text-light border-secondary shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Recent Activity</h5>
+                    <div class="text-center text-muted p-3">
+                        <p class="mb-0">Recent additions and updates will appear here</p>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
+        <div class="col-md-6">
+            <div class="card bg-dark text-light border-secondary shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Top Contributors</h5>
+                    <div class="text-center text-muted p-3">
+                        <p class="mb-0">Most active contributors will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
+<!-- Track Template -->
 <template id="track-card-template">
-    <!-- ...existing code... -->
+    <div class="list-group-item d-flex align-items-center gap-3 bg-dark text-light border-secondary">
+        <img src="" alt="Album Cover" class="track-image rounded" width="48" height="48">
+        <div class="flex-grow-1">
+            <h6 class="track-title mb-0"></h6>
+            <small class="text-muted">
+                <span class="track-artist"></span>
+                •
+                <span class="track-album"></span>
+            </small>
+        </div>
+        <small class="text-muted track-duration me-2"></small>
+        <button class="btn btn-primary btn-sm btn-add">
+            <i class="fas fa-plus"></i>
+            Add
+        </button>
+    </div>
 </template>
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Only keep the URL configuration
 const addSongUrl = "{{ url_for('add_song') }}";
 const removeSongUrl = "{{ url_for('remove_song') }}";
 </script>
