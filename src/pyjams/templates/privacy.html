@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy - PyJams{% endblock %}
+
+{% block content %}
+<div class="container privacy-policy">
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last updated: {{ ''|current_year }}</p>
+
+    <section>
+        <h2>Overview</h2>
+        <p>PyJams ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and share information when you use our service.</p>
+    </section>
+
+    <section>
+        <h2>Information We Collect</h2>
+        <ul>
+            <li>Your Spotify account information (display name, email)</li>
+            <li>Playlist data and interactions</li>
+            <li>Usage data and analytics</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>How We Use Your Information</h2>
+        <ul>
+            <li>To provide and maintain our service</li>
+            <li>To manage your playlist interactions</li>
+            <li>To improve our service</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Data Storage</h2>
+        <p>We store minimal user data and primarily interact with Spotify's API. Your Spotify credentials are never stored on our servers.</p>
+    </section>
+
+    <section>
+        <h2>Contact</h2>
+        <p>If you have any questions about this Privacy Policy, please contact us via GitHub.</p>
+    </section>
+</div>
+{% endblock %}

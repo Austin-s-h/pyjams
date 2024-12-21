@@ -48,21 +48,24 @@
                 <div class="playlist-cards">
                     {% for playlist in playlists %}
                         <div class="playlist-card {{ 'is-current' if playlist.id == settings.PUBLIC_PLAYLIST_ID }}">
-                            <img src="{{ playlist.images[0].url if playlist.images else '' }}" 
-                                 alt="{{ playlist.name }}"
-                                 class="playlist-cover">
-                            <div class="playlist-info">
-                                <h3>{{ playlist.name }}</h3>
-                                <p>{{ playlist.tracks.total }} tracks</p>
-                            </div>
+                            <a href="{{ url_for('playlist_details', playlist_id=playlist.id) }}" class="playlist-card-content">
+                                <img src="{{ playlist.images[0].url if playlist.images else '' }}" 
+                                     alt="{{ playlist.name }}"
+                                     class="playlist-cover">
+                                <div class="playlist-info">
+                                    <h3>{{ playlist.name }}</h3>
+                                    <p>{{ playlist.tracks.total }} tracks</p>
+                                </div>
+                            </a>
                             <div class="card-actions">
                                 {% if playlist.id != settings.PUBLIC_PLAYLIST_ID %}
-                                    <form action="{{ url_for('set_public_playlist') }}" method="POST" onsubmit="event.preventDefault(); setPublicPlaylist('{{ playlist.id }}');">
-                                        <input type="hidden" name="playlist_id" value="{{ playlist.id }}">
-                                        <button type="submit" class="btn btn-primary btn-sm">Set Public</button>
-                                    </form>
+                                    <button onclick="setPublicPlaylist('{{ playlist.id }}')" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-broadcast-tower"></i> Set Public
+                                    </button>
                                 {% else %}
-                                    <span class="status-badge">Current Public</span>
+                                    <span class="status-badge">
+                                        <i class="fas fa-broadcast-tower"></i> Current Public
+                                    </span>
                                 {% endif %}
                             </div>
                         </div>

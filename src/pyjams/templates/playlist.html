@@ -21,20 +21,9 @@
             </iframe>
         </div>
 
-        <div class="playlist-player-mini">
-            <iframe src="https://open.spotify.com/embed/playlist/{{ playlist.id }}?utm_source=generator&theme=0"
-                    width="100%" 
-                    height="152" 
-                    frameborder="0" 
-                    allowfullscreen="" 
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                    loading="lazy">
-            </iframe>
-        </div>
-
-        {% if config.ADMIN_USERNAME == current_user.id %}
+        {% if settings.ADMIN_USERNAME == current_user.id %}
             <div class="admin-controls">
-                {% if playlist.id == config.PUBLIC_PLAYLIST_ID %}
+                {% if playlist.id == settings.PUBLIC_PLAYLIST_ID %}
                     <div class="status-badge">Current Public Playlist</div>
                 {% else %}
                     <form action="{{ url_for('set_public_playlist') }}" method="POST" class="set-public-form">
