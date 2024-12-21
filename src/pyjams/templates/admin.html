@@ -47,7 +47,7 @@
                 <h2>Your Playlists</h2>
                 <div class="playlist-cards">
                     {% for playlist in playlists %}
-                        <div class="playlist-card {{ 'is-current' if playlist.id == config.PUBLIC_PLAYLIST_ID }}">
+                        <div class="playlist-card {{ 'is-current' if playlist.id == settings.PUBLIC_PLAYLIST_ID }}">
                             <img src="{{ playlist.images[0].url if playlist.images else '' }}" 
                                  alt="{{ playlist.name }}"
                                  class="playlist-cover">
@@ -56,7 +56,7 @@
                                 <p>{{ playlist.tracks.total }} tracks</p>
                             </div>
                             <div class="card-actions">
-                                {% if playlist.id != config.PUBLIC_PLAYLIST_ID %}
+                                {% if playlist.id != settings.PUBLIC_PLAYLIST_ID %}
                                     <form action="{{ url_for('set_public_playlist') }}" method="POST" onsubmit="event.preventDefault(); setPublicPlaylist('{{ playlist.id }}');">
                                         <input type="hidden" name="playlist_id" value="{{ playlist.id }}">
                                         <button type="submit" class="btn btn-primary btn-sm">Set Public</button>

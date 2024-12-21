@@ -6,21 +6,6 @@
 <div class="search-container">
     <div class="search-layout">
         <section class="search-section">
-            <div class="search-header">
-                <h1>Search Tracks</h1>
-                <form action="{{ url_for('index') }}" method="get" class="search-form">
-                    <div class="search-input-group">
-                        <i class="fas fa-search search-icon"></i>
-                        <input type="search" 
-                               name="q" 
-                               class="search-input" 
-                               placeholder="Search for songs..."
-                               value="{{ query }}"
-                               data-search-url="{{ url_for('search_tracks') }}"
-                        >
-                    </div>
-                </form>
-            </div>
             <div class="search-input-group">
                 <i class="fas fa-search search-icon"></i>
                 <input type="text" 
@@ -57,7 +42,7 @@
                             <div class="track-actions">
                                 <button onclick="addToPublicPlaylist('{{ track.id }}')" 
                                         class="add-track-btn"
-                                        {% if not config.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
+                                        {% if not settings.PUBLIC_PLAYLIST_ID %}disabled{% endif %}>
                                     <i class="fas fa-plus"></i> Add to Public Playlist
                                 </button>
                             </div>
@@ -77,9 +62,9 @@
                 </a>
                 {% endif %}
             </div>
-            {% if config.PUBLIC_PLAYLIST_ID %}
+            {% if settings.PUBLIC_PLAYLIST_ID %}
             <div class="playlist-player-sidebar">
-                <iframe src="https://open.spotify.com/embed/playlist/{{ config.PUBLIC_PLAYLIST_ID }}?utm_source=generator&theme=0"
+                <iframe src="https://open.spotify.com/embed/playlist/{{ settings.PUBLIC_PLAYLIST_ID }}?utm_source=generator&theme=0"
                         width="100%" 
                         height="100%"
                         frameborder="0" 
@@ -106,7 +91,7 @@
             {% else %}
             <div class="no-playlist-message">
                 <p>No public playlist has been set up yet.</p>
-                {% if current_user and current_user.id == config.ADMIN_USERNAME %}
+                {% if current_user and current_user.id == settings.ADMIN_USERNAME %}
                 <a href="{{ url_for('admin_panel') }}" class="admin-link">Set up playlist</a>
                 {% endif %}
             </div>
@@ -237,8 +222,8 @@ document.addEventListener('click', function(e) {
 
 // Add this to your existing JavaScript
 function updatePlaylistStats() {
-    if ('{{ config.PUBLIC_PLAYLIST_ID }}') {
-        fetch(`/api/playlist_stats/{{ config.PUBLIC_PLAYLIST_ID }}`)
+    if ('{{ settings.PUBLIC_PLAYLIST_ID }}') {
+        fetch(`/api/playlist_stats/{{ settings.PUBLIC_PLAYLIST_ID }}`)
             .then(response => response.json())
             .then(data => {
                 document.getElementById('followerCount').textContent = data.followers;

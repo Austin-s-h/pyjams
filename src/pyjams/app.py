@@ -10,7 +10,7 @@ from spotipy.exceptions import SpotifyException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
-from pyjams.models import Admin, SQLModel, engine, get_session, get_spotify, init_spotify_oauth, settings
+from pyjams.models import Admin, SQLModel, TokenError, engine, get_session, get_spotify, init_spotify_oauth, settings
 
 # Get the directory containing the current file
 BASE_DIR = Path(__file__).resolve().parent
@@ -35,8 +35,10 @@ app.add_middleware(
 @app.get("/")
 async def index(request: Request):
     """Render index page with login or search interface."""
+    # Check if token exists in session
     if "token_info" not in request.session:
-        return templates.TemplateResponse("login.html", {"request": request})
+        print("No token_info in session")  # Debug logging
+        return templates.TemplateResponse("login.html", {"request": request, "settings": settings})
 
     try:
         spotify = await get_spotify(request.session)
@@ -47,18 +49,47 @@ async def index(request: Request):
             results = spotify.search(q=query, type="track", limit=12)
             tracks = results["tracks"]["items"] if results else None
 
-        return templates.TemplateResponse("index.html", {"request": request, "tracks": tracks, "query": query})
-    except Exception:
-        return templates.TemplateResponse("login.html", {"request": request})
+        return templates.TemplateResponse(
+            "index.html", {"request": request, "tracks": tracks, "query": query, "settings": settings}
+        )
+
+    except TokenError as te:
+        print(f"TokenError: {te}")  # Debug logging
+        request.session.clear()
+        return templates.TemplateResponse("login.html", {"request": request, "settings": settings})
+    except Exception as e:
+        print(f"Index error: {e!s}")  # More detailed error logging
+        if "token_info" in request.session:
+            print(f"Token info present: {request.session['token_info']}")  # Debug token info
+        return templates.TemplateResponse("login.html", {"request": request, "settings": settings})
 
 
 @app.get("/auth")
-async def auth():
+async def auth(request: Request):
     """Initialize Spotify OAuth login flow."""
     try:
+        # Check if user is already authenticated with a valid token
+        if "token_info" in request.session:
+            oauth = init_spotify_oauth()
+            token_info = request.session["token_info"]
+
+            if not oauth.is_token_expired(token_info):
+                return RedirectResponse(url="/")
+
+            # Try to refresh expired token
+            try:
+                token_info = oauth.refresh_access_token(token_info["refresh_token"])
+                request.session["token_info"] = token_info
+                return RedirectResponse(url="/")
+            except:
+                # If refresh fails, clear session and continue with new auth
+                request.session.pop("token_info", None)
+
+        # Start new authentication flow
         oauth = init_spotify_oauth()
         auth_url = oauth.get_authorize_url()
         return RedirectResponse(url=auth_url)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -76,26 +107,31 @@ async def callback(code: str, request: Request):
             return RedirectResponse(url="/")
 
         # Store token info in session
+        request.session.clear()  # Clear any existing session data
         request.session["token_info"] = token_info
 
         # Get and store user info
         spotify = Spotify(auth=token_info["access_token"])
         current_user = spotify.current_user()
         request.session["user_name"] = current_user["display_name"]
+        request.session["user_id"] = current_user["id"]  # Store user ID
 
         # Set admin status if applicable
         if current_user["id"] == settings.ADMIN_USERNAME:
             request.session["admin"] = True
             session = next(get_session())
-            admin = Admin(spotify_id=current_user["id"], name=current_user["display_name"])
-            session.add(admin)
-            session.commit()
+            # Check if admin already exists
+            admin = session.query(Admin).filter(Admin.spotify_id == current_user["id"]).first()
+            if not admin:
+                admin = Admin(spotify_id=current_user["id"], name=current_user["display_name"])
+                session.add(admin)
+                session.commit()
 
-        # Use absolute URL for redirect
         return RedirectResponse(url="/", status_code=303)
     except Exception as e:
         print(f"Callback error: {e}")  # Add logging
-        raise HTTPException(status_code=500, detail=str(e))
+        request.session.clear()
+        return RedirectResponse(url="/", status_code=303)
 
 
 # API routes
@@ -181,7 +217,13 @@ async def admin_panel(request: Request):
     current_public_playlist = spotify.playlist(settings.PUBLIC_PLAYLIST_ID) if settings.PUBLIC_PLAYLIST_ID else None
 
     return templates.TemplateResponse(
-        "admin.html", {"request": request, "playlists": playlists, "current_public_playlist": current_public_playlist}
+        "admin.html",
+        {
+            "request": request,
+            "playlists": playlists,
+            "current_public_playlist": current_public_playlist,
+            "settings": settings,
+        },
     )
 
 
@@ -216,8 +258,17 @@ async def playlist_details(playlist_id: str, request: Request):
         spotify = await get_spotify(request.session)
         playlist = spotify.playlist(playlist_id)
         tracks = spotify.playlist_tracks(playlist_id)
+        current_user = spotify.current_user()
+
         return templates.TemplateResponse(
-            "playlist.html", {"request": request, "playlist": playlist, "tracks": tracks["items"]}
+            "playlist.html",
+            {
+                "request": request,
+                "playlist": playlist,
+                "tracks": tracks["items"],
+                "settings": settings,
+                "current_user": current_user,
+            },
         )
     except SpotifyException as e:
         raise HTTPException(status_code=400, detail=str(e))

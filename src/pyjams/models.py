@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 
-from fastapi import HTTPException
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
 from sqlmodel import Field, Session, SQLModel, create_engine
@@ -63,16 +62,30 @@ def init_spotify_oauth() -> SpotifyOAuth:
     )
 
 
-async def get_spotify(session: dict) -> Spotify:
-    """Get or create Spotify API client."""
+class TokenError(Exception):
+    """Raised when there are issues with the Spotify token."""
+
+    pass
+
+
+async def get_spotify(session) -> Spotify:
+    """Get authenticated Spotify client."""
     if "token_info" not in session:
-        raise HTTPException(status_code=401, detail="No token info found")
+        raise TokenError("No token info in session")
 
+    token_info = session["token_info"]
+
+    # Validate token info structure
+    if not isinstance(token_info, dict) or "access_token" not in token_info:
+        raise TokenError("Invalid token info structure")
+
+    # Check if token is expired
     oauth = init_spotify_oauth()
-    token_info = session.get("token_info")
-
     if oauth.is_token_expired(token_info):
-        token_info = oauth.refresh_access_token(token_info["refresh_token"])
-        session["token_info"] = token_info
+        try:
+            token_info = oauth.refresh_access_token(token_info["refresh_token"])
+            session["token_info"] = token_info
+        except Exception as e:
+            raise TokenError(f"Failed to refresh token: {e!s}")
 
     return Spotify(auth=token_info["access_token"])
