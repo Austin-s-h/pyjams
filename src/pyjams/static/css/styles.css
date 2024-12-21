@@ -951,7 +951,7 @@ body {
 }
 
 .track-card {
-    background: var(--secondary-color);
+    background: var (--secondary-color);
     border-radius: 8px;
     overflow: hidden;
     transition: transform 0.2s;

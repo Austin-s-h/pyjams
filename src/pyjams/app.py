@@ -356,3 +356,35 @@ async def playlist_stats(playlist_id: str, request: Request):
 async def privacy_policy(request: Request):
     """Render privacy policy page."""
     return render_template("privacy.html", {"request": request})
+
+
+@app.get("/api/suggestions")
+@spotify_error_handler
+async def get_suggestions(request: Request):
+    """Get track suggestions based on the current public playlist."""
+    spotify = await get_spotify(request.session)
+
+    if not settings.PUBLIC_PLAYLIST_ID:
+        # Return popular tracks if no public playlist
+        recommendations = spotify.recommendations(limit=6, seed_genres=["pop"])
+    else:
+        # Get recommendations based on current playlist tracks
+        playlist_tracks = spotify.playlist_tracks(settings.PUBLIC_PLAYLIST_ID)
+        seed_tracks = [item["track"]["id"] for item in playlist_tracks["items"][:5]]
+
+        recommendations = spotify.recommendations(limit=6, seed_tracks=seed_tracks, min_popularity=30)
+
+    return {
+        "tracks": [
+            {
+                "id": track["id"],
+                "name": track["name"],
+                "artists": [artist["name"] for artist in track["artists"]],
+                "album": {
+                    "name": track["album"]["name"],
+                    "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
+                },
+            }
+            for track in recommendations["tracks"]
+        ]
+    }

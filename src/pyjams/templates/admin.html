@@ -2,78 +2,87 @@
 
 {% block title %}PyJams - Admin Panel{% endblock %}
 
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+{% endblock %}
+
 {% block content %}
-<div class="admin-container">
-    <header class="admin-header">
-        <h1><i class="fas fa-shield-alt"></i> Admin Panel</h1>
-    </header>
-
-    <div class="admin-layout">
-        <!-- Sidebar with current playlist -->
-        <aside class="admin-sidebar">
-            <div class="current-playlist-widget">
-                <h2>Public Playlist</h2>
-                {% if current_public_playlist %}
-                    <div class="current-playlist-info">
-                        <img src="{{ current_public_playlist.images[0].url if current_public_playlist.images else '' }}" 
-                             alt="Playlist cover"
-                             class="playlist-thumbnail">
-                        <div class="playlist-details">
-                            <h3>{{ current_public_playlist.name }}</h3>
-                            <p class="playlist-meta">
-                                <span><i class="fas fa-music"></i> {{ current_public_playlist.tracks.total }} tracks</span>
-                                <span><i class="fas fa-users"></i> {{ current_public_playlist.followers.total }} followers</span>
-                            </p>
-                        </div>
-                        <div class="playlist-actions">
-                            <a href="{{ url_for('playlist_details', playlist_id=current_public_playlist.id) }}" 
-                               class="btn btn-secondary btn-sm">
-                                <i class="fas fa-external-link-alt"></i> View
-                            </a>
-                        </div>
+<div class="admin-layout">
+    <div class="admin-sidebar">
+        <div class="current-playlist-widget">
+            <h2>Current Public Playlist</h2>
+            {% if current_public_playlist %}
+            <div class="current-playlist-info">
+                <img src="{{ current_public_playlist.images[0].url if current_public_playlist.images else url_for('static', filename='images/default-playlist.png') }}"
+                     alt="{{ current_public_playlist.name }}"
+                     class="playlist-thumbnail">
+                <div class="playlist-details">
+                    <h3>{{ current_public_playlist.name }}</h3>
+                    <div class="playlist-meta">
+                        <span><i class="fas fa-music"></i> {{ current_public_playlist.tracks.total }} tracks</span>
+                        <span><i class="fas fa-users"></i> {{ current_public_playlist.followers.total }} followers</span>
                     </div>
-                {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-music"></i>
-                        <p>No public playlist set</p>
-                    </div>
-                {% endif %}
-            </div>
-        </aside>
-
-        <!-- Main content area -->
-        <main class="admin-main">
-            <div class="playlist-grid">
-                <h2>Your Playlists</h2>
-                <div class="playlist-cards">
-                    {% for playlist in playlists %}
-                        <!-- Consider creating reusable playlist card component -->
-                        <div class="playlist-card {{ 'is-current' if playlist.id == settings.PUBLIC_PLAYLIST_ID }}">
-                            <a href="{{ url_for('playlist_details', playlist_id=playlist.id) }}" class="playlist-card-content">
-                                <img src="{{ playlist.images[0].url if playlist.images else '' }}" 
-                                     alt="{{ playlist.name }}"
-                                     class="playlist-cover">
-                                <div class="playlist-info">
-                                    <h3>{{ playlist.name }}</h3>
-                                    <p>{{ playlist.tracks.total }} tracks</p>
-                                </div>
-                            </a>
-                            <div class="card-actions">
-                                {% if playlist.id != settings.PUBLIC_PLAYLIST_ID %}
-                                    <button onclick="setPublicPlaylist('{{ playlist.id }}')" class="btn btn-primary btn-sm">
-                                        <i class="fas fa-broadcast-tower"></i> Set Public
-                                    </button>
-                                {% else %}
-                                    <span class="status-badge">
-                                        <i class="fas fa-broadcast-tower"></i> Current Public
-                                    </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    {% endfor %}
                 </div>
             </div>
-        </main>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-music"></i>
+                <p>No public playlist selected</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="playlist-grid">
+        <div class="section-header">
+            <h2>Your Playlists</h2>
+            <div class="playlist-filters">
+                <input type="text" 
+                       class="form-control search-input" 
+                       placeholder="Search playlists..."
+                       id="playlistFilter">
+                <select class="form-select" id="sortPlaylists">
+                    <option value="name">Sort by Name</option>
+                    <option value="tracks">Sort by Tracks</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="playlist-cards" id="playlistTableBody">
+            {% for playlist in playlists %}
+            <div class="playlist-card {{ 'is-current' if playlist.id == settings.PUBLIC_PLAYLIST_ID }}"
+                 data-tracks="{{ playlist.tracks.total }}"
+                 data-name="{{ playlist.name|lower }}"
+                 data-id="{{ playlist.id }}">
+                <img src="{{ playlist.images[0].url if playlist.images and playlist.images|length > 0 else url_for('static', filename='images/default-playlist.png') }}" 
+                     alt="{{ playlist.name }}"
+                     class="playlist-cover"
+                     loading="lazy">
+                <div class="playlist-info">
+                    <h3>{{ playlist.name|default('Unnamed Playlist') }}</h3>
+                    <p>{{ playlist.tracks.total|default(0) }} tracks</p>
+                </div>
+                <div class="card-actions">
+                    {% if playlist.id != settings.PUBLIC_PLAYLIST_ID %}
+                        <button onclick="setPublicPlaylist('{{ playlist.id }}')" 
+                                class="btn btn-sm btn-primary set-public-btn"
+                                data-playlist-id="{{ playlist.id }}">
+                            Set as Public
+                        </button>
+                    {% else %}
+                        <span class="status-badge">Current Public</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="pagination-controls">
+            <button id="prevPage" class="btn btn-outline-secondary" disabled>Previous</button>
+            <span id="pageInfo">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+            <button id="nextPage" class="btn btn-outline-secondary">Next</button>
+        </div>
     </div>
 </div>
 
@@ -81,12 +90,100 @@
     <span id="notification-message"></span>
     <button onclick="hideNotification()" class="close-btn">&times;</button>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterInput = document.getElementById('playlistFilter');
+    const sortSelect = document.getElementById('sortPlaylists');
+    const tableBody = document.getElementById('playlistTableBody');
+    const playlistRows = document.querySelectorAll('.playlist-row');
+    
+    const ITEMS_PER_PAGE = 25;
+    let currentPage = 1;
+    let filteredRows = Array.from(playlistRows);
+
+    function updatePagination() {
+        const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
+        document.getElementById('currentPage').textContent = currentPage;
+        document.getElementById('totalPages').textContent = totalPages;
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage === totalPages;
+    }
+
+    function displayCurrentPage() {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        
+        tableBody.innerHTML = '';
+        filteredRows.slice(start, end).forEach(row => {
+            const newRow = row.cloneNode(true);
+            const button = newRow.querySelector('.set-public-btn');
+            if (button) {
+                const playlistId = button.dataset.playlistId;
+                button.onclick = () => setPublicPlaylist(playlistId);
+            }
+            tableBody.appendChild(newRow);
+        });
+    }
+
+    function filterAndSortPlaylists() {
+        const filterValue = filterInput.value.toLowerCase();
+        const sortValue = sortSelect.value;
+        
+        filteredRows = Array.from(playlistRows).filter(row => {
+            return row.dataset.name.includes(filterValue);
+        });
+
+        filteredRows.sort((a, b) => {
+            return sortValue === 'name' 
+                ? a.dataset.name.localeCompare(b.dataset.name)
+                : parseInt(b.dataset.tracks) - parseInt(a.dataset.tracks);
+        });
+
+        currentPage = 1;
+        updatePagination();
+        displayCurrentPage();
+    }
+
+    document.getElementById('prevPage').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            updatePagination();
+            displayCurrentPage();
+        }
+    });
+
+    document.getElementById('nextPage').addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
+        if (currentPage < totalPages) {
+            currentPage++;
+            updatePagination();
+            displayCurrentPage();
+        }
+    });
+
+    let filterTimeout;
+    filterInput.addEventListener('input', () => {
+        clearTimeout(filterTimeout);
+        filterTimeout = setTimeout(filterAndSortPlaylists, 300);
+    });
+
+    sortSelect.addEventListener('change', filterAndSortPlaylists);
+
+    // Initialize
+    updatePagination();
+    displayCurrentPage();
+});
+
 function setPublicPlaylist(playlistId) {
+    if (!playlistId) {
+        showNotification('Invalid playlist ID', 'error');
+        return;
+    }
+
     fetch('/admin/set_public_playlist', {
         method: 'POST',
         headers: {
@@ -100,29 +197,15 @@ function setPublicPlaylist(playlistId) {
             showNotification(data.error, 'error');
         } else {
             showNotification(data.message, 'success');
-            // Optional: Refresh the page after a short delay
-            setTimeout(() => window.location.reload(), 2000);
+            setTimeout(() => window.location.reload(), 1500);
         }
     })
     .catch(error => {
         showNotification('Error setting public playlist', 'error');
+        console.error('Error:', error);
     });
 }
 
-function showNotification(message, type = 'success') {
-    const notification = document.getElementById('notification');
-    const messageElement = document.getElementById('notification-message');
-    
-    notification.className = `notification ${type}`;
-    messageElement.textContent = message;
-    notification.style.display = 'flex';
-    
-    // Auto-hide after 5 seconds
-    setTimeout(hideNotification, 5000);
-}
-
-function hideNotification() {
-    document.getElementById('notification').style.display = 'none';
-}
+// ...existing notification functions...
 </script>
 {% endblock %}
