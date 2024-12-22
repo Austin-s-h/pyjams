@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
+    const searchSpinner = document.getElementById('searchSpinner');
     let searchTimeout;
 
     searchInput.addEventListener('input', function() {
@@ -14,7 +15,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         searchTimeout = setTimeout(async () => {
             try {
-                const response = await fetch(`/search?q=${encodeURIComponent(query)}`); // Updated path
+                searchSpinner?.classList.remove('d-none');
+                const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
                 
                 searchResults.innerHTML = data.tracks.map(track => `
@@ -23,7 +25,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             <h6 class="mb-1">${track.name}</h6>
                             <small>${track.artists.join(', ')} • ${track.album.name}</small>
                         </div>
-                        <button class="btn btn-success btn-sm add-track" data-track-id="${track.id}">
+                        <button class="btn btn-success btn-sm add-track" 
+                                data-track-id="${track.id}">
                             <i class="fas fa-plus"></i> Add
                         </button>
                     </div>
@@ -31,27 +34,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 searchResults.style.display = 'block';
                 
-                // Add click handlers for add buttons
+                // Update add track handler
                 document.querySelectorAll('.add-track').forEach(button => {
                     button.addEventListener('click', async (e) => {
-                        const trackId = e.target.closest('.add-track').dataset.trackId;
+                        if (!currentPlaylistId) {
+                            PyJams.showError('No playlist selected');
+                            return;
+                        }
+
+                        const btn = e.target.closest('.add-track');
+                        const trackId = btn.dataset.trackId;
+                        
                         try {
                             const formData = new FormData();
                             formData.append('track_id', trackId);
-                            formData.append('playlist_id', currentPlaylistId); // Make sure this is defined
+                            formData.append('playlist_id', currentPlaylistId);
                             
-                            const response = await fetch('/api/add_song', { // Updated path
+                            const response = await fetch(addSongUrl, {
                                 method: 'POST',
                                 body: formData
                             });
                             
                             const result = await response.json();
                             if (response.ok) {
-                                alert(result.message);
+                                PyJams.showSuccess(result.message);
                                 searchInput.value = '';
                                 searchResults.style.display = 'none';
                             } else {
-                                alert(result.detail || 'Error adding track');
+                                PyJams.showError(result.detail || 'Error adding track');
                             }
                         } catch (error) {
                             console.error('Error:', error);
@@ -62,7 +72,8 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Error:', error);
                 searchResults.innerHTML = '<div class="list-group-item bg-dark text-light">Error searching tracks</div>';
-                searchResults.style.display = 'block';
+            } finally {
+                searchSpinner?.classList.add('d-none');
             }
         }, 300);
     });

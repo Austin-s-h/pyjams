@@ -467,9 +467,9 @@ async def playlist_details(playlist_id: str, request: Request):
 
 
 # Routes - API
-@app.get("/search")  # Change from /api/search_tracks to /search
+@app.get("/api/search")  # Change from /search to /api/search
 @spotify_error_handler
-async def search_tracks(q: str, request: Request):  # Remove "user_" from function name
+async def search_tracks(q: str, request: Request):
     """Search for tracks available to the user."""
     if len(q) < 2:
         return {"tracks": []}
@@ -496,7 +496,7 @@ async def search_tracks(q: str, request: Request):  # Remove "user_" from functi
     }
 
 
-@app.post("/api/add_song")  # Changed from /add_song to /api/add_song
+@app.post("/api/songs/add")  # Change from /add_song to /api/songs/add
 @spotify_error_handler
 async def add_track(request: Request, track_id: str = Form(...), playlist_id: str = Form(...)):
     """Add a track to the playlist."""
@@ -531,7 +531,7 @@ async def add_track(request: Request, track_id: str = Form(...), playlist_id: st
     }
 
 
-@app.post("/remove_song")
+@app.post("/api/songs/remove")  # Change from /remove_song to /api/songs/remove
 @spotify_error_handler
 async def remove_track(request: Request, track_id: str = Form(...), playlist_id: str | None = Form(None)):
     """Remove a track from the playlist."""

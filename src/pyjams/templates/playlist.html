@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Add this hidden input for the current playlist ID -->
+<input type="hidden" id="currentPlaylistId" value="{{ playlist.id }}">
+
 <div class="container py-4">
     <div class="row">
         <!-- Playlist Header -->

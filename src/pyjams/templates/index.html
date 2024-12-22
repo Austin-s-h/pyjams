@@ -5,93 +5,92 @@
 
 {% block content %}
 <div class="container py-4">
-    <!-- Public Playlists Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="text-light mb-3">Public Playlists</h2>
-            {% if public_playlists and public_playlists|length > 0 %}
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                {% for playlist in public_playlists %}
-                <div class="col">
-                    {{ playlist_card(playlist, is_manager=playlist.id in managed_playlist_ids) }}
-                </div>
-                {% endfor %}
-            </div>
-            {% else %}
-            <div class="card bg-dark text-light border-secondary">
-                <div class="card-body text-center">
-                    <p class="mb-0">No public playlists available yet.</p>
-                    {% if request.session.get('admin') %}
-                    <a href="{{ url_for('admin_panel') }}" class="btn btn-primary mt-2">Create Playlist</a>
-                    {% endif %}
-                </div>
-            </div>
+    <!-- Featured Playlists Section -->
+    <section class="mb-4" aria-labelledby="public-playlists-heading">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 id="public-playlists-heading" class="text-light">Public Playlists</h2>
+            {% if request.session.get('admin') %}
+            <a href="{{ url_for('admin_panel') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                <span>Create Playlist</span>
+            </a>
             {% endif %}
         </div>
-    </div>
+
+        {% if public_playlists and public_playlists|length > 0 %}
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            {% for playlist in public_playlists %}
+            <div class="col">
+                {{ playlist_card(playlist, is_manager=playlist.id in managed_playlist_ids) }}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="card bg-dark text-light border-secondary">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-music fa-3x mb-3 text-secondary"></i>
+                <p class="mb-0">No public playlists available yet.</p>
+            </div>
+        </div>
+        {% endif %}
+    </section>
 
     <!-- Search Section -->
-    <div class="row justify-content-center mb-4">
+    <section class="row justify-content-center mb-4" aria-labelledby="search-heading">
         <div class="col-md-8">
             <div class="card bg-dark text-light border-secondary">
                 <div class="card-body">
-                    <h5 class="card-title">Search Songs</h5>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        <input type="text" 
-                               id="searchInput" 
-                               class="form-control"
-                               placeholder="Search for songs..." 
-                               value="{{ query }}"
-                               autocomplete="off">
+                    <h5 id="search-heading" class="card-title">Search Songs</h5>
+                    <div class="search-container">
+                        <!-- Add hidden input for current playlist -->
+                        <input type="hidden" id="currentPlaylistId" value="{{ playlist.id if playlist else '' }}">
+                        <div class="input-group">
+                            <span class="input-group-text" aria-hidden="true">
+                                <i class="fas fa-search"></i>
+                            </span>
+                            <input type="text" 
+                                   id="searchInput" 
+                                   class="form-control"
+                                   placeholder="Search for songs..." 
+                                   value="{{ query }}"
+                                   aria-label="Search for songs"
+                                   autocomplete="off"
+                                   role="combobox"
+                                   aria-expanded="false"
+                                   aria-controls="searchResults"
+                                   aria-describedby="searchHelp">
+                            <div id="searchSpinner" class="input-group-text d-none">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Searching...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <small id="searchHelp" class="form-text text-secondary mt-1">
+                            Start typing to search for songs to add
+                        </small>
                     </div>
-                    <div id="searchResults" class="list-group mt-2" style="display: none;">
-                        <!-- Search results will be inserted here -->
+                    <div id="searchResults" 
+                         class="list-group mt-2" 
+                         style="display: none;"
+                         role="listbox"
+                         aria-live="polite">
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 </div>
 
 {% include "modals/playlist_manager.html" %}
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const playlistManagerForm = document.getElementById('playlistManagerForm');
-    if (playlistManagerForm) {
-        playlistManagerForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            try {
-                const response = await fetch('/admin/add_manager', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    alert('Manager added successfully');
-                    location.reload();
-                } else {
-                    alert(data.detail || 'Error adding manager');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error adding manager');
-            }
-        });
-    }
-});
-</script>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-const searchUrl = "{{ url_for('search_tracks') }}";
-const addSongUrl = "{{ url_for('add_track') }}";
-const removeSongUrl = "{{ url_for('remove_track') }}";
-const playlistStatsUrl = "{{ url_for('playlist_stats', playlist_id='PLAYLIST_ID') }}".replace('PLAYLIST_ID', ''); // Updated
+// Update API endpoints with direct paths
+const searchUrl = "/api/search";
+const addSongUrl = "/api/songs/add";
+const removeSongUrl = "/api/songs/remove";
+const currentPlaylistId = document.getElementById('currentPlaylistId').value;
 </script>
 <script src="{{ url_for('js/search.js') }}"></script>
 <script src="{{ url_for('js/main.js') }}"></script>
