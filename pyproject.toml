@@ -12,6 +12,7 @@ dependencies = [
   "python-jose[cryptography]>=3.3.0",
   "python-dotenv>=1.0.1",
   "itsdangerous>=2.2.0",
+  "pydantic-settings>=2.7.0",
 ]
 description = "Add your description here"
 name = "pyjams"

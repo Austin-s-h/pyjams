@@ -1,114 +1,52 @@
 {% extends "base.html" %}
+{% from "components/playlist_card.html" import playlist_card %}
 
-{% block title %}PyJams - Collaborative Playlist{% endblock %}
+{% block title %}PyJams - Collaborative Playlists{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <!-- Featured Playlist Section -->
+    <!-- Public Playlists Section -->
     <div class="row mb-4">
-        <!-- Consider splitting this into a partial template -->
-        <div class="col-lg-8">
-            {% if settings.PUBLIC_PLAYLIST_ID %}
-            <div class="card bg-dark text-light border-secondary">
-                <div class="card-body">
-                    <iframe src="https://open.spotify.com/embed/playlist/{{ settings.PUBLIC_PLAYLIST_ID }}?utm_source=generator"
-                            class="w-100"
-                            height="352"
-                            frameborder="0" 
-                            allowfullscreen="" 
-                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                            loading="lazy">
-                    </iframe>
+        <div class="col-12">
+            <h2 class="text-light mb-3">Public Playlists</h2>
+            {% if public_playlists %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for playlist in public_playlists %}
+                <div class="col">
+                    {{ playlist_card(playlist, is_manager=playlist.id in managed_playlist_ids) }}
                 </div>
+                {% endfor %}
             </div>
             {% else %}
             <div class="card bg-dark text-light border-secondary">
                 <div class="card-body text-center">
-                    <p class="mb-0">No public playlist has been set up yet.</p>
+                    <p class="mb-0">No public playlists available yet.</p>
                     {% if request.session.get('admin') %}
-                    <a href="{{ url_for('admin_panel') }}" class="btn btn-primary mt-2">Set up playlist</a>
+                    <a href="{{ url_for('admin_panel') }}" class="btn btn-primary mt-2">Create Playlist</a>
                     {% endif %}
                 </div>
             </div>
             {% endif %}
         </div>
-        
-        <div class="col-lg-4">
-            <div class="card bg-dark text-light border-secondary">
-                <div class="card-body">
-                    <h5 class="card-title">Playlist Statistics</h5>
-                    <div class="row text-center g-3">
-                        <div class="col-4">
-                            <div class="border-end border-secondary">
-                                <h6 class="mb-1" id="followerCount">--</h6>
-                                <small class="text-light-50">Followers</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="border-end border-secondary">
-                                <h6 class="mb-1" id="trackCount">--</h6>
-                                <small class="text-light-50">Tracks</small>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div>
-                                <h6 class="mb-1" id="totalDuration">--</h6>
-                                <small class="text-light-50">Duration</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Consider extracting search section to a component -->
     <!-- Search Section -->
     <div class="row justify-content-center mb-4">
         <div class="col-md-8">
-            <div class="card bg-dark text-light border-secondary shadow-sm">
+            <div class="card bg-dark text-light border-secondary">
                 <div class="card-body">
+                    <h5 class="card-title">Search Songs</h5>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-search"></i></span>
                         <input type="text" 
                                id="searchInput" 
                                class="form-control"
-                               placeholder="Search for songs to add..." 
+                               placeholder="Search for songs..." 
                                value="{{ query }}"
                                autocomplete="off">
                     </div>
                     <div id="searchResults" class="list-group mt-2" style="display: none;">
-                        <div class="results-loading text-center p-2" style="display: none;">
-                            <div class="spinner-border spinner-border-sm" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                            Searching...
-                        </div>
-                        <div class="results-content"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- History & Stats Section -->
-    <div class="row g-4">
-        <div class="col-md-6">
-            <div class="card bg-dark text-light border-secondary shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Recent Activity</h5>
-                    <div class="text-center text-muted p-3">
-                        <p class="mb-0">Recent additions and updates will appear here</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card bg-dark text-light border-secondary shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Top Contributors</h5>
-                    <div class="text-center text-muted p-3">
-                        <p class="mb-0">Most active contributors will appear here</p>
+                        <!-- Search results will be inserted here -->
                     </div>
                 </div>
             </div>
@@ -116,31 +54,45 @@
     </div>
 </div>
 
-<!-- Track Template -->
-<template id="track-card-template">
-    <div class="list-group-item d-flex align-items-center gap-3 bg-dark text-light border-secondary">
-        <img src="" alt="Album Cover" class="track-image rounded" width="48" height="48">
-        <div class="flex-grow-1">
-            <h6 class="track-title mb-0"></h6>
-            <small class="text-muted">
-                <span class="track-artist"></span>
-                •
-                <span class="track-album"></span>
-            </small>
-        </div>
-        <small class="text-muted track-duration me-2"></small>
-        <button class="btn btn-primary btn-sm btn-add">
-            <i class="fas fa-plus"></i>
-            Add
-        </button>
-    </div>
-</template>
+{% include "modals/playlist_manager.html" %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const playlistManagerForm = document.getElementById('playlistManagerForm');
+    if (playlistManagerForm) {
+        playlistManagerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            try {
+                const response = await fetch('/admin/add_manager', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    alert('Manager added successfully');
+                    location.reload();
+                } else {
+                    alert(data.detail || 'Error adding manager');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding manager');
+            }
+        });
+    }
+});
+</script>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+const searchUrl = "{{ url_for('search_tracks') }}";
 const addSongUrl = "{{ url_for('add_song') }}";
 const removeSongUrl = "{{ url_for('remove_song') }}";
+const playlistStatsUrl = "{{ url_for('playlist_stats', playlist_id='PLAYLIST_ID') }}";
 </script>
-<script src="{{ url_for('static', path='js/search.js') }}"></script>
+<script src="{{ url_for('js/search.js') }}"></script>
+<script src="{{ url_for('js/main.js') }}"></script>
 {% endblock %}

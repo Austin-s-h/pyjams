@@ -5,13 +5,12 @@ A Flask web application that allows users to manage Spotify playlists collaborat
 ## Features
 
 - 🔐 Secure Spotify OAuth Authentication
-- 🔍 Real-time track search with audio previews
+- 🔍 Real-time track search
 - 🎵 Collaborative playlist management
 - 🖼️ Rich media display with album artwork
 - 👥 Admin controls for playlist management
 - ⚡ Fast, responsive interface
 - 📊 Admin dashboard with playlist statistics
-- 🎨 Modern, responsive design with grid/list views
 - 🔄 Real-time playlist updates
 - 📱 Mobile-friendly interface
 

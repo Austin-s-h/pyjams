@@ -1,20 +1,27 @@
 import os
 from datetime import datetime
 
+from pydantic import Field as PydanticField
+from pydantic_settings import BaseSettings
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from sqlmodel import Field, Session, SQLModel, create_engine
+from sqlmodel import Field, Relationship, Session, SQLModel, create_engine
 
 
-# Config
-class Settings:
-    SPOTIFY_CLIENT_ID: str = os.environ.get("SPOTIFY_CLIENT_ID", "")
-    SPOTIFY_CLIENT_SECRET: str = os.environ.get("SPOTIFY_CLIENT_SECRET", "")
-    ADMIN_USERNAME: str = os.environ.get("SPOTIFY_ADMIN_USERNAME", "")
-    PUBLIC_PLAYLIST_ID: str = os.environ.get("SPOTIFY_PUBLIC_PLAYLIST_ID", "")
-    SECRET_KEY: str = os.environ.get("SECRET_KEY", os.urandom(24).hex())
+class Settings(BaseSettings):
+    """Application settings."""
+
+    SPOTIFY_CLIENT_ID: str = PydanticField(..., description="Spotify API client ID")
+    SPOTIFY_CLIENT_SECRET: str = PydanticField(..., description="Spotify API client secret")
+    SPOTIFY_ADMIN_USERNAME: str = PydanticField(..., description="Spotify admin user ID")
+    PUBLIC_PLAYLIST_ID: str = PydanticField("", description="Current public playlist ID")
+    SECRET_KEY: str = PydanticField(default_factory=lambda: os.urandom(24).hex())
     BASE_URL: str = "http://127.0.0.1:4884"
     DATABASE_URL: str = "sqlite:///pyjams.db"
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
 settings = Settings()
@@ -34,6 +41,34 @@ class Playlist(SQLModel, table=True):
     is_active: bool = Field(default=False)
     admin_id: int = Field(foreign_key="admin.id")
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PublicPlaylist(SQLModel, table=True):
+    """Model for public playlists that can be managed by users."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    spotify_id: str = Field(unique=True, index=True)
+    name: str = Field()
+    description: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by_id: str = Field(foreign_key="admin.spotify_id")
+    is_active: bool = Field(default=True)
+
+    # Relationships
+    managers: list["PlaylistManager"] = Relationship(back_populates="playlist")
+
+
+class PlaylistManager(SQLModel, table=True):
+    """Model for users who can manage a public playlist."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    playlist_id: int = Field(foreign_key="publicplaylist.id")
+    user_id: str = Field(foreign_key="admin.spotify_id")
+    added_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = Field(default=True)
+
+    # Relationships
+    playlist: PublicPlaylist = Relationship(back_populates="managers")
 
 
 # Database setup

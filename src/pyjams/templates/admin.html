@@ -1,211 +1,38 @@
 {% extends "base.html" %}
+{% from "components/playlist_card.html" import playlist_card %}
 
-{% block title %}PyJams - Admin Panel{% endblock %}
+{% block title %}PyJams Admin{% endblock %}
 
 {% block head %}
 {{ super() }}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<link rel="stylesheet" href="{{ request.url_for('static', path='css/styles.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="admin-layout">
-    <div class="admin-sidebar">
-        <div class="current-playlist-widget">
-            <h2>Current Public Playlist</h2>
-            {% if current_public_playlist %}
-            <div class="current-playlist-info">
-                <img src="{{ current_public_playlist.images[0].url if current_public_playlist.images else url_for('static', filename='images/default-playlist.png') }}"
-                     alt="{{ current_public_playlist.name }}"
-                     class="playlist-thumbnail">
-                <div class="playlist-details">
-                    <h3>{{ current_public_playlist.name }}</h3>
-                    <div class="playlist-meta">
-                        <span><i class="fas fa-music"></i> {{ current_public_playlist.tracks.total }} tracks</span>
-                        <span><i class="fas fa-users"></i> {{ current_public_playlist.followers.total }} followers</span>
-                    </div>
-                </div>
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <i class="fas fa-music"></i>
-                <p>No public playlist selected</p>
-            </div>
-            {% endif %}
-        </div>
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="text-light">Admin Panel</h1>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+            <i class="fas fa-plus"></i> Create Public Playlist
+        </button>
     </div>
-
-    <div class="playlist-grid">
-        <div class="section-header">
-            <h2>Your Playlists</h2>
-            <div class="playlist-filters">
-                <input type="text" 
-                       class="form-control search-input" 
-                       placeholder="Search playlists..."
-                       id="playlistFilter">
-                <select class="form-select" id="sortPlaylists">
-                    <option value="name">Sort by Name</option>
-                    <option value="tracks">Sort by Tracks</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="playlist-cards" id="playlistTableBody">
-            {% for playlist in playlists %}
-            <div class="playlist-card {{ 'is-current' if playlist.id == settings.PUBLIC_PLAYLIST_ID }}"
-                 data-tracks="{{ playlist.tracks.total }}"
-                 data-name="{{ playlist.name|lower }}"
-                 data-id="{{ playlist.id }}">
-                <img src="{{ playlist.images[0].url if playlist.images and playlist.images|length > 0 else url_for('static', filename='images/default-playlist.png') }}" 
-                     alt="{{ playlist.name }}"
-                     class="playlist-cover"
-                     loading="lazy">
-                <div class="playlist-info">
-                    <h3>{{ playlist.name|default('Unnamed Playlist') }}</h3>
-                    <p>{{ playlist.tracks.total|default(0) }} tracks</p>
-                </div>
-                <div class="card-actions">
-                    {% if playlist.id != settings.PUBLIC_PLAYLIST_ID %}
-                        <button onclick="setPublicPlaylist('{{ playlist.id }}')" 
-                                class="btn btn-sm btn-primary set-public-btn"
-                                data-playlist-id="{{ playlist.id }}">
-                            Set as Public
-                        </button>
-                    {% else %}
-                        <span class="status-badge">Current Public</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <div class="pagination-controls">
-            <button id="prevPage" class="btn btn-outline-secondary" disabled>Previous</button>
-            <span id="pageInfo">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
-            <button id="nextPage" class="btn btn-outline-secondary">Next</button>
-        </div>
-    </div>
-</div>
-
-<div id="notification" class="notification" style="display: none;">
-    <span id="notification-message"></span>
-    <button onclick="hideNotification()" class="close-btn">&times;</button>
-</div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterInput = document.getElementById('playlistFilter');
-    const sortSelect = document.getElementById('sortPlaylists');
-    const tableBody = document.getElementById('playlistTableBody');
-    const playlistRows = document.querySelectorAll('.playlist-row');
     
-    const ITEMS_PER_PAGE = 25;
-    let currentPage = 1;
-    let filteredRows = Array.from(playlistRows);
+    {% if managed_playlists %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for playlist in managed_playlists %}
+        <div class="col">
+            {{ playlist_card(playlist, is_manager=True) }}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        No playlists under management. Create one to get started!
+    </div>
+    {% endif %}
+</div>
 
-    function updatePagination() {
-        const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
-        document.getElementById('currentPage').textContent = currentPage;
-        document.getElementById('totalPages').textContent = totalPages;
-        document.getElementById('prevPage').disabled = currentPage === 1;
-        document.getElementById('nextPage').disabled = currentPage === totalPages;
-    }
+{% include "modals/create_playlist.html" %}
+{% include "modals/playlist_manager.html" %}
 
-    function displayCurrentPage() {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        const end = start + ITEMS_PER_PAGE;
-        
-        tableBody.innerHTML = '';
-        filteredRows.slice(start, end).forEach(row => {
-            const newRow = row.cloneNode(true);
-            const button = newRow.querySelector('.set-public-btn');
-            if (button) {
-                const playlistId = button.dataset.playlistId;
-                button.onclick = () => setPublicPlaylist(playlistId);
-            }
-            tableBody.appendChild(newRow);
-        });
-    }
-
-    function filterAndSortPlaylists() {
-        const filterValue = filterInput.value.toLowerCase();
-        const sortValue = sortSelect.value;
-        
-        filteredRows = Array.from(playlistRows).filter(row => {
-            return row.dataset.name.includes(filterValue);
-        });
-
-        filteredRows.sort((a, b) => {
-            return sortValue === 'name' 
-                ? a.dataset.name.localeCompare(b.dataset.name)
-                : parseInt(b.dataset.tracks) - parseInt(a.dataset.tracks);
-        });
-
-        currentPage = 1;
-        updatePagination();
-        displayCurrentPage();
-    }
-
-    document.getElementById('prevPage').addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            updatePagination();
-            displayCurrentPage();
-        }
-    });
-
-    document.getElementById('nextPage').addEventListener('click', () => {
-        const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
-        if (currentPage < totalPages) {
-            currentPage++;
-            updatePagination();
-            displayCurrentPage();
-        }
-    });
-
-    let filterTimeout;
-    filterInput.addEventListener('input', () => {
-        clearTimeout(filterTimeout);
-        filterTimeout = setTimeout(filterAndSortPlaylists, 300);
-    });
-
-    sortSelect.addEventListener('change', filterAndSortPlaylists);
-
-    // Initialize
-    updatePagination();
-    displayCurrentPage();
-});
-
-function setPublicPlaylist(playlistId) {
-    if (!playlistId) {
-        showNotification('Invalid playlist ID', 'error');
-        return;
-    }
-
-    fetch('/admin/set_public_playlist', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `playlist_id=${playlistId}`
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            showNotification(data.error, 'error');
-        } else {
-            showNotification(data.message, 'success');
-            setTimeout(() => window.location.reload(), 1500);
-        }
-    })
-    .catch(error => {
-        showNotification('Error setting public playlist', 'error');
-        console.error('Error:', error);
-    });
-}
-
-// ...existing notification functions...
-</script>
 {% endblock %}

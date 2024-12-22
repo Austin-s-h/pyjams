@@ -1,0 +1,31 @@
+{% macro playlist_card(playlist, is_manager=False) %}
+<div class="playlist-card" data-id="{{ playlist.id }}" data-spotify-id="{{ playlist.spotify_id }}">
+    <div class="playlist-card-content">
+        <img src="{{ playlist.images[0].url if playlist.images else url_for('images/default-playlist.png') }}" 
+             alt="{{ playlist.name }}" 
+             class="playlist-cover">
+        <div class="playlist-info">
+            <h3>{{ playlist.name }}</h3>
+            {% if playlist.description %}
+            <p>{{ playlist.description }}</p>
+            {% endif %}
+        </div>
+        <div class="card-actions">
+            <div class="btn-group w-100">
+                <a href="{{ url_for('playlist_details', playlist_id=playlist.spotify_id) }}" 
+                   class="btn btn-outline-light">
+                    <i class="fas fa-eye"></i> View
+                </a>
+                {% if is_manager %}
+                <button class="btn btn-outline-primary" 
+                        onclick="openManagerModal('{{ playlist.id }}', '{{ playlist.name }}')"
+                        data-bs-toggle="modal" 
+                        data-bs-target="#playlistManagerModal">
+                    <i class="fas fa-user-plus"></i> Manage
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}

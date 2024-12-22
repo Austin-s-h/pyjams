@@ -1,8 +1,8 @@
-import os
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -12,62 +12,92 @@ from spotipy import Spotify
 from spotipy.exceptions import SpotifyException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
+from starlette.templating import _TemplateResponse
 
-from pyjams.models import Admin, SQLModel, TokenError, engine, get_session, get_spotify, init_spotify_oauth, settings
+from pyjams.models import (
+    Admin,
+    PlaylistManager,
+    PublicPlaylist,
+    SQLModel,
+    TokenError,
+    engine,
+    get_session,
+    get_spotify,
+    init_spotify_oauth,
+    settings,
+)
 
-# Get the directory containing the current file
+# Configuration
 BASE_DIR = Path(__file__).resolve().parent
+app = FastAPI(
+    title="PyJams",
+    description="A collaborative playlist manager for Spotify",
+    version="1.0.0",
+)
 
-# FastAPI app setup
-app = FastAPI()
-
-# Update static files mounting
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+# Static files and templates setup
+static_dir = BASE_DIR / "static"
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+# Update the url_for function in globals
+templates.env.globals.update(
+    {
+        "url_for": lambda name, **params: (
+            app.url_path_for(name, **params) if not name.startswith(("css/", "js/", "images/")) else f"/static/{name}"
+        ),
+        "current_year": lambda: datetime.now().year,
+    }
+)
 
-# Update template filter for current year
-def get_current_year(input_value):
-    """Template filter that returns the current year."""
-    return datetime.now().year
+# Initialize database
+SQLModel.metadata.create_all(engine)
+
+# Add session middleware
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="session",
+)
 
 
-templates.env.filters["current_year"] = get_current_year
-
-
-# Flash message implementation
-def get_flashed_messages(request: Request, with_categories=False) -> list[tuple[str, str]] | list[str]:
-    """Get and clear flash messages from session."""
-    messages = request.session.pop("flash_messages", [])
-    if with_categories:
-        return messages
-    return [message for _, message in messages]
-
-
-def flash(request: Request, message: str, category: str = "info"):
+# Helper Functions
+def flash(request: Request, message: str, category: str = "info") -> None:
     """Add a flash message to the session."""
     if "flash_messages" not in request.session:
         request.session["flash_messages"] = []
     request.session["flash_messages"].append((category, message))
 
 
-# Update Jinja2 environment
-templates.env.globals["get_flashed_messages"] = get_flashed_messages
-
-# Create database tables
-SQLModel.metadata.create_all(engine)
-
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=settings.SECRET_KEY,
-)
+def get_flashed_messages(request: Request, with_categories: bool = False) -> list[tuple[str, str]] | list[str]:
+    """Get and clear flash messages from session."""
+    messages = request.session.pop("flash_messages", [])
+    return messages if with_categories else [msg for _, msg in messages]
 
 
-def spotify_error_handler(func: Callable):
-    """Decorator to handle common Spotify API errors."""
+def render_template(template_name: str, context: dict[str, Any]) -> _TemplateResponse:
+    """Render template with common context data."""
+    context.update(
+        {
+            "settings": settings,
+            "get_flashed_messages": lambda **kwargs: get_flashed_messages(context["request"], **kwargs),
+        }
+    )
+    return templates.TemplateResponse(template_name, context)
+
+
+async def get_playlist_info(spotify: Spotify, playlist_id: str) -> tuple[dict, dict]:
+    """Get playlist and its tracks."""
+    playlist = spotify.playlist(playlist_id)
+    tracks = spotify.playlist_tracks(playlist_id)
+    return playlist, tracks
+
+
+def spotify_error_handler(func: Callable) -> Callable:
+    """Handle common Spotify API errors."""
 
     @wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs) -> Any:
         request = next((arg for arg in args if isinstance(arg, Request)), kwargs.get("request"))
         if not request:
             raise ValueError("Request object not found in arguments")
@@ -111,21 +141,18 @@ def spotify_error_handler(func: Callable):
     return wrapper
 
 
-def render_template(template_name: str, context: dict):
-    """Helper function to render templates with common context."""
-    context["settings"] = settings
-    context["get_flashed_messages"] = lambda **kwargs: get_flashed_messages(context["request"], **kwargs)
-    return templates.TemplateResponse(template_name, context)
+# Middleware
+@app.middleware("http")
+async def add_template_context(request: Request, call_next) -> Any:
+    """Add common context to all templates."""
+    response = await call_next(request)
+    if hasattr(response, "context"):
+        response.context["request"] = request
+        response.context["settings"] = settings
+    return response
 
 
-async def get_playlist_info(spotify: Spotify, playlist_id: str):
-    """Helper function to get playlist details."""
-    playlist = spotify.playlist(playlist_id)
-    tracks = spotify.playlist_tracks(playlist_id)
-    return playlist, tracks
-
-
-# Routes
+# Routes - Main
 @app.get("/")
 @spotify_error_handler
 async def index(request: Request):
@@ -137,13 +164,37 @@ async def index(request: Request):
     query = request.query_params.get("q", "")
     tracks = None
 
+    # Get public playlists
+    session = next(get_session())
+    public_playlists = session.query(PublicPlaylist).filter(PublicPlaylist.is_active == True).all()
+
+    # Get managed playlist IDs for the current user
+    managed_playlist_ids = set()
+    if request.session.get("user_id"):
+        managed_playlist_ids = {
+            manager.playlist_id
+            for manager in session.query(PlaylistManager)
+            .filter(PlaylistManager.user_id == request.session["user_id"], PlaylistManager.is_active == True)
+            .all()
+        }
+
     if query:
         results = spotify.search(q=query, type="track", limit=12)
         tracks = results["tracks"]["items"] if results else None
 
-    return render_template("index.html", {"request": request, "tracks": tracks, "query": query})
+    return render_template(
+        "index.html",
+        {
+            "request": request,
+            "tracks": tracks,
+            "query": query,
+            "public_playlists": public_playlists,
+            "managed_playlist_ids": managed_playlist_ids,
+        },
+    )
 
 
+# Routes - Auth
 @app.get("/auth")
 @spotify_error_handler
 async def auth(request: Request):
@@ -189,7 +240,7 @@ async def callback(code: str, request: Request):
         request.session["user_id"] = current_user["id"]  # Store user ID
 
         # Set admin status if applicable
-        if current_user["id"] == settings.ADMIN_USERNAME:
+        if current_user["id"] == settings.SPOTIFY_ADMIN_USERNAME:
             request.session["admin"] = True
             session = next(get_session())
             # Check if admin already exists
@@ -199,16 +250,182 @@ async def callback(code: str, request: Request):
                 session.add(admin)
                 session.commit()
 
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/")
     except Exception as e:
         print(f"Callback error: {e}")  # Add logging
         request.session.clear()
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/")
 
 
+# Routes - Admin
+@app.get("/admin")
+@spotify_error_handler
+async def admin_panel(request: Request):
+    """Render admin panel."""
+    # Check if user is admin
+    if not request.session.get("admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    spotify = await get_spotify(request.session)
+    current_user = spotify.current_user()
+
+    # Get user's playlists from Spotify
+    playlists = spotify.user_playlists(current_user["id"])["items"]
+
+    # Get managed public playlists from database
+    session = next(get_session())
+    managed_playlists = (
+        session.query(PublicPlaylist)
+        .join(PlaylistManager)
+        .filter(PlaylistManager.user_id == current_user["id"])
+        .filter(PublicPlaylist.is_active == True)
+        .all()
+    )
+
+    return render_template(
+        "admin.html",
+        {
+            "request": request,
+            "playlists": playlists,
+            "managed_playlists": managed_playlists,
+        },
+    )
+
+
+@app.post("/admin/create_public_playlist")
+@spotify_error_handler
+async def create_public_playlist(
+    request: Request,
+    playlist_id: str = Form(...),
+    description: str = Form(None),
+):
+    """Create a new public playlist."""
+    spotify = await get_spotify(request.session)
+    current_user = spotify.current_user()
+
+    # Verify playlist exists and user has access
+    try:
+        playlist = spotify.playlist(playlist_id)
+    except SpotifyException:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
+    session = next(get_session())
+
+    # Create public playlist entry
+    public_playlist = PublicPlaylist(
+        spotify_id=playlist_id,
+        name=playlist["name"],
+        description=description,
+        created_by_id=current_user["id"],
+    )
+    session.add(public_playlist)
+    session.flush()  # Get the ID before committing
+
+    # Add creator as manager
+    manager = PlaylistManager(
+        playlist_id=public_playlist.id,
+        user_id=current_user["id"],
+    )
+    session.add(manager)
+    session.commit()
+
+    return {
+        "message": f'Created public playlist "{playlist["name"]}"',
+        "playlist": {
+            "id": public_playlist.id,
+            "spotify_id": playlist_id,
+            "name": playlist["name"],
+        },
+    }
+
+
+@app.post("/admin/add_manager")
+@spotify_error_handler
+async def add_playlist_manager(
+    request: Request,
+    playlist_id: int = Form(...),
+    user_id: str = Form(...),
+):
+    """Add a manager to a public playlist."""
+    spotify = await get_spotify(request.session)
+    current_user = spotify.current_user()
+
+    session = next(get_session())
+    playlist = session.get(PublicPlaylist, playlist_id)
+
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
+    # Verify requester is a manager
+    is_manager = (
+        session.query(PlaylistManager)
+        .filter(
+            PlaylistManager.playlist_id == playlist_id,
+            PlaylistManager.user_id == current_user["id"],
+            PlaylistManager.is_active == True,
+        )
+        .first()
+    )
+
+    if not is_manager:
+        raise HTTPException(status_code=403, detail="Not authorized to manage this playlist")
+
+    # Add new manager
+    manager = PlaylistManager(
+        playlist_id=playlist_id,
+        user_id=user_id,
+    )
+    session.add(manager)
+    session.commit()
+
+    return {"message": "Added manager to playlist"}
+
+
+# Routes - Playlist
+@app.get("/playlist/{playlist_id}")
+@spotify_error_handler
+async def playlist_details(playlist_id: str, request: Request):
+    """Show playlist details."""
+    spotify = await get_spotify(request.session)
+    current_user = spotify.current_user()
+
+    session = next(get_session())
+    public_playlist = session.query(PublicPlaylist).filter(PublicPlaylist.spotify_id == playlist_id).first()
+
+    playlist, tracks = await get_playlist_info(spotify, playlist_id)
+
+    # Check if user is a manager
+    is_manager = False
+    if public_playlist:
+        is_manager = (
+            session.query(PlaylistManager)
+            .filter(
+                PlaylistManager.playlist_id == public_playlist.id,
+                PlaylistManager.user_id == current_user["id"],
+                PlaylistManager.is_active == True,
+            )
+            .first()
+            is not None
+        )
+
+    return render_template(
+        "playlist.html",
+        {
+            "request": request,
+            "playlist": playlist,
+            "tracks": tracks["items"],
+            "current_user": current_user,
+            "public_playlist": public_playlist,
+            "is_manager": is_manager,
+        },
+    )
+
+
+# Routes - API
 @app.get("/api/search_tracks")
 @spotify_error_handler
 async def search_tracks(q: str, request: Request):
+    """Search for tracks."""
     if len(q) < 2:
         return {"tracks": []}
 
@@ -237,6 +454,7 @@ async def search_tracks(q: str, request: Request):
 @app.post("/add_song")
 @spotify_error_handler
 async def add_song(request: Request, track_id: str = Form(...)):
+    """Add a song to the playlist."""
     spotify = await get_spotify(request.session)
     if not settings.PUBLIC_PLAYLIST_ID:
         flash(request, "No public playlist configured", "error")
@@ -264,6 +482,7 @@ async def add_song(request: Request, track_id: str = Form(...)):
 @app.post("/remove_song")
 @spotify_error_handler
 async def remove_song(request: Request, track_id: str = Form(...), playlist_id: str | None = Form(None)):
+    """Remove a song from the playlist."""
     spotify = await get_spotify(request.session)
     playlist_id = playlist_id or settings.PUBLIC_PLAYLIST_ID
     if not playlist_id:
@@ -275,70 +494,10 @@ async def remove_song(request: Request, track_id: str = Form(...), playlist_id: 
     return {"message": f'Removed "{track["name"]}" from the playlist', "track_id": track_id}
 
 
-# Admin routes
-@app.get("/admin")
-@spotify_error_handler
-async def admin_panel(request: Request):
-    spotify = await get_spotify(request.session)
-    current_user = spotify.current_user()
-    if current_user["id"] != settings.ADMIN_USERNAME:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-
-    playlists = spotify.user_playlists(current_user["id"])["items"]
-    current_public_playlist = spotify.playlist(settings.PUBLIC_PLAYLIST_ID) if settings.PUBLIC_PLAYLIST_ID else None
-
-    return render_template(
-        "admin.html", {"request": request, "playlists": playlists, "current_public_playlist": current_public_playlist}
-    )
-
-
-@app.post("/admin/set_public_playlist")
-@spotify_error_handler
-async def set_public_playlist(request: Request, playlist_id: str = Form(...)):
-    spotify = await get_spotify(request.session)
-    current_user = spotify.current_user()
-    if current_user["id"] != settings.ADMIN_USERNAME:
-        raise HTTPException(status_code=403, detail="Unauthorized")
-
-    try:
-        playlist = spotify.playlist(playlist_id)
-        # Note: In a real app, you'd want to store this in a database instead
-        os.environ["SPOTIFY_PUBLIC_PLAYLIST_ID"] = playlist_id
-        settings.PUBLIC_PLAYLIST_ID = playlist_id
-
-        return {
-            "message": f'Set public playlist to "{playlist["name"]}"',
-            "playlist": {
-                "name": playlist["name"],
-                "id": playlist["id"],
-                "image": playlist["images"][0]["url"] if playlist["images"] else None,
-            },
-        }
-    except SpotifyException as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/playlist/{playlist_id}")
-@spotify_error_handler
-async def playlist_details(playlist_id: str, request: Request):
-    spotify = await get_spotify(request.session)
-    playlist, tracks = await get_playlist_info(spotify, playlist_id)
-    current_user = spotify.current_user()
-
-    return render_template(
-        "playlist.html",
-        {
-            "request": request,
-            "playlist": playlist,
-            "tracks": tracks["items"],
-            "current_user": current_user,
-        },
-    )
-
-
 @app.get("/api/playlist_stats/{playlist_id}")
 @spotify_error_handler
 async def playlist_stats(playlist_id: str, request: Request):
+    """Get playlist statistics."""
     spotify = await get_spotify(request.session)
     playlist, tracks = await get_playlist_info(spotify, playlist_id)
 
@@ -352,16 +511,10 @@ async def playlist_stats(playlist_id: str, request: Request):
     }
 
 
-@app.get("/privacy")
-async def privacy_policy(request: Request):
-    """Render privacy policy page."""
-    return render_template("privacy.html", {"request": request})
-
-
 @app.get("/api/suggestions")
 @spotify_error_handler
 async def get_suggestions(request: Request):
-    """Get track suggestions based on the current public playlist."""
+    """Get track suggestions."""
     spotify = await get_spotify(request.session)
 
     if not settings.PUBLIC_PLAYLIST_ID:
@@ -388,3 +541,10 @@ async def get_suggestions(request: Request):
             for track in recommendations["tracks"]
         ]
     }
+
+
+# Routes - Static Pages
+@app.get("/privacy")
+async def privacy_policy(request: Request):
+    """Render privacy policy page."""
+    return render_template("privacy.html", {"request": request})
