@@ -35,4 +35,61 @@
 {% include "modals/create_playlist.html" %}
 {% include "modals/playlist_manager.html" %}
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const createPlaylistForm = document.getElementById('createPlaylistForm');
+    if (createPlaylistForm) {
+        createPlaylistForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            try {
+                const response = await fetch('/admin/create_public_playlist', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification(data.message, 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('createPlaylistModal'));
+                    modal.hide();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(data.detail || 'Error creating playlist', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error creating playlist', 'error');
+            }
+        });
+    }
+
+    const playlistManagerForm = document.getElementById('playlistManagerForm');
+    if (playlistManagerForm) {
+        playlistManagerForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            try {
+                const response = await fetch('/admin/add_manager', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification('Manager added successfully', 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('playlistManagerModal'));
+                    modal.hide();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showNotification(data.detail || 'Error adding manager', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error adding manager', 'error');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

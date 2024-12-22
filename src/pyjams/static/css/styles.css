@@ -5,6 +5,7 @@
 /* - pages.css (page-specific styles) */
 
 :root {
+    /* Core colors */
     --primary-color: #1DB954;
     --primary-dark: #1aa34a;
     --secondary-color: #282828;
@@ -1484,6 +1485,81 @@ body {
     }
 }
 
+/* Notification System */
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1060;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.notification {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 300px;
+    padding: 1rem;
+    border-radius: 8px;
+    background: var(--background-elevated-base);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s ease-out;
+}
+
+.notification.success {
+    border-left: 4px solid var(--primary-color);
+}
+
+.notification.error {
+    border-left: 4px solid var(--error-base);
+}
+
+.notification-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-primary);
+}
+
+.notification-content i {
+    font-size: 1.25rem;
+}
+
+.notification.success i {
+    color: var (--primary-color);
+}
+
+.notification.error i {
+    color: var(--error-base);
+}
+
+.notification-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    margin-left: 12px;
+    transition: color 0.2s;
+}
+
+.notification-close:hover {
+    color: var(--text-primary);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
 /* Privacy Policy Page */
 .privacy-policy {
     max-width: 800px;
@@ -1580,3 +1656,144 @@ body {
         padding-top: 4rem;
     }
 }
+
+/* Form controls */
+.form-control {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--background-elevated-highlight);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+/* Form labels and text */
+.form-label,
+.form-text {
+    color: var(--text-secondary);
+}
+
+/* Modal styling */
+.modal-content {
+    background-color: var(--background-elevated-base);
+    color: var(--text-primary);
+}
+
+.modal-header,
+.modal-footer {
+    border-color: var(--background-elevated-highlight);
+}
+
+/* Select styling */
+.form-select {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+    color: var(--text-primary);
+}
+
+.form-select option {
+    background-color: var(--background-elevated-base);
+    color: var(--text-primary);
+}
+
+/* Card styling */
+.card {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+}
+
+.card-header {
+    background-color: var(--background-elevated-base);
+    border-bottom-color: var(--background-elevated-highlight);
+}
+
+.card-body {
+    color: var(--text-primary);
+}
+
+/* List group styling */
+.list-group-item {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+    color: var(--text-primary);
+}
+
+/* Button styling */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--essential-base);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: var(--essential-base);
+}
+
+.btn-outline-light {
+    color: var(--text-primary);
+    border-color: var(--text-secondary);
+}
+
+.btn-outline-light:hover {
+    background-color: var(--background-elevated-highlight);
+    color: var (--primary-color);
+}
+
+/* Text colors */
+.text-light {
+    color: var(--text-primary) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+/* Input groups */
+.input-group-text {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+    color: var(--text-secondary);
+}
+
+/* Alert styling */
+.alert {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+    color: var(--text-primary);
+}
+
+/* Search results */
+#searchResults {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+}
+
+#searchResults .list-group-item {
+    background-color: var(--background-elevated-base);
+    border-color: var(--background-elevated-highlight);
+    color: var(--text-primary);
+}
+
+#searchResults .list-group-item:hover {
+    background-color: var(--background-elevated-highlight);
+}
+
+/* Playlist card */
+.playlist-card {
+    background-color: var(--background-elevated-base);
+}
+
+.playlist-info h3 {
+    color: var(--text-primary);
+}
+
+.playlist-info p {
+    color: var(--text-secondary);
+}
+
+/* ...existing code... */

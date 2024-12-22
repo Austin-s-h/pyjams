@@ -5,20 +5,20 @@
     <div class="row">
         <!-- Playlist Header -->
         <div class="col-12 mb-4">
-            <div class="card bg-dark text-light border-secondary">
+            <div class="card bg-dark border-secondary">
                 <div class="card-body">
                     <div class="d-flex align-items-start">
-                        <img src="{{ playlist.images[0].url if playlist.images else url_for('images/default-playlist.png') }}" 
+                        <img src="{{ playlist.image_url if playlist.image_url else '/static/images/default-playlist.png' }}" 
                              alt="{{ playlist.name }}" 
                              class="playlist-cover me-4"
                              style="width: 200px; height: 200px; object-fit: cover;">
                         <div class="flex-grow-1">
-                            <h1 class="display-4">{{ playlist.name }}</h1>
+                            <h1 class="display-4 text-light">{{ playlist.name }}</h1>
                             {% if public_playlist %}
-                                <p class="text-muted">Created by {{ public_playlist.created_by_id }} 
+                                <p class="text-secondary">Created by {{ public_playlist.created_by_id }} 
                                     on {{ public_playlist.created_at.strftime('%B %d, %Y') }}</p>
                                 {% if public_playlist.description %}
-                                    <p class="lead">{{ public_playlist.description }}</p>
+                                    <p class="lead text-light">{{ public_playlist.description }}</p>
                                 {% endif %}
                             {% endif %}
                             
@@ -27,32 +27,32 @@
                                 <div class="col-md-3">
                                     <div class="card bg-dark border-secondary">
                                         <div class="card-body text-center">
-                                            <h3 class="card-title">{{ stats.track_count }}</h3>
-                                            <p class="card-text text-muted">Tracks</p>
+                                            <h3 class="card-title text-primary">{{ stats.track_count }}</h3>
+                                            <p class="card-text text-secondary">Tracks</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="card bg-dark border-secondary">
                                         <div class="card-body text-center">
-                                            <h3 class="card-title">{{ stats.duration }}</h3>
-                                            <p class="card-text text-muted">Duration</p>
+                                            <h3 class="card-title text-primary">{{ stats.duration }}</h3>
+                                            <p class="card-text text-secondary">Duration</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="card bg-dark border-secondary">
                                         <div class="card-body text-center">
-                                            <h3 class="card-title">{{ stats.followers }}</h3>
-                                            <p class="card-text text-muted">Followers</p>
+                                            <h3 class="card-title text-primary">{{ stats.followers }}</h3>
+                                            <p class="card-text text-secondary">Followers</p>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="card bg-dark border-secondary">
                                         <div class="card-body text-center">
-                                            <h3 class="card-title">{{ playlist_managers|length }}</h3>
-                                            <p class="card-text text-muted">Managers</p>
+                                            <h3 class="card-title text-primary">{{ playlist_managers|length }}</h3>
+                                            <p class="card-text text-secondary">Managers</p>
                                         </div>
                                     </div>
                                 </div>
@@ -66,21 +66,21 @@
         <!-- Main Content -->
         <div class="col-md-8">
             <!-- Tracks List -->
-            <div class="card bg-dark text-light border-secondary">
+            <div class="card bg-dark border-secondary">
                 <div class="card-header border-secondary">
-                    <h3 class="card-title mb-0">Tracks</h3>
+                    <h3 class="card-title mb-0 text-light">Tracks</h3>
                 </div>
                 <div class="list-group list-group-flush">
                     {% for track in tracks %}
-                    <div class="list-group-item bg-dark text-light border-secondary">
+                    <div class="list-group-item bg-dark border-secondary">
                         <div class="d-flex align-items-center">
                             <img src="{{ track.track.album.images[0].url }}" 
                                  alt="{{ track.track.name }}" 
                                  class="me-3"
                                  style="width: 50px; height: 50px;">
                             <div class="flex-grow-1">
-                                <h5 class="mb-0">{{ track.track.name }}</h5>
-                                <small class="text-muted">
+                                <h5 class="mb-0 text-light">{{ track.track.name }}</h5>
+                                <small class="text-secondary">
                                     {{ track.track.artists|map(attribute='name')|join(', ') }}
                                     • {{ track.track.album.name }}
                                 </small>
@@ -101,9 +101,9 @@
         <!-- Sidebar -->
         <div class="col-md-4">
             <!-- Managers Section -->
-            <div class="card bg-dark text-light border-secondary mb-4">
+            <div class="card bg-dark border-secondary mb-4">
                 <div class="card-header border-secondary d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">Playlist Managers</h4>
+                    <h4 class="card-title mb-0 text-light">Playlist Managers</h4>
                     {% if is_manager %}
                     <button class="btn btn-primary btn-sm" 
                             data-bs-toggle="modal" 
@@ -114,11 +114,11 @@
                 </div>
                 <div class="list-group list-group-flush">
                     {% for manager in playlist_managers %}
-                    <div class="list-group-item bg-dark text-light border-secondary">
+                    <div class="list-group-item bg-dark border-secondary">
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
-                                <h6 class="mb-0">{{ manager.user_id }}</h6>
-                                <small class="text-muted">Added {{ manager.added_at.strftime('%B %d, %Y') }}</small>
+                                <h6 class="mb-0 text-light">{{ manager.user_id }}</h6>
+                                <small class="text-secondary">Added {{ manager.added_at.strftime('%B %d, %Y') }}</small>
                             </div>
                         </div>
                     </div>
