@@ -16,10 +16,11 @@ from starlette.templating import _TemplateResponse
 
 from pyjams.models import (
     Admin,
+    FeaturedPlaylist,
     PlaylistManager,
-    PublicPlaylist,
     SQLModel,
     TokenError,
+    User,  # Add this import
     engine,
     get_session,
     get_spotify,
@@ -166,7 +167,7 @@ async def index(request: Request):
 
     # Get public playlists and enrich with Spotify data
     session = next(get_session())
-    public_playlists = session.query(PublicPlaylist).filter(PublicPlaylist.is_active == True).all()
+    public_playlists = session.query(FeaturedPlaylist).filter(FeaturedPlaylist.is_active == True).all()
 
     # Get managed playlist IDs for the current user
     managed_playlist_ids = set()
@@ -217,6 +218,27 @@ async def auth(request: Request):
     return RedirectResponse(url=oauth.get_authorize_url())
 
 
+async def sync_spotify_user(session, spotify_user: dict) -> User:
+    """Create or update user in database from Spotify data."""
+    user = session.query(User).filter(User.spotify_id == spotify_user["id"]).first()
+
+    if user:
+        user.name = spotify_user["display_name"]
+        user.email = spotify_user.get("email")
+        user.last_login = datetime.utcnow()
+    else:
+        user = User(
+            spotify_id=spotify_user["id"],
+            name=spotify_user["display_name"],
+            email=spotify_user.get("email"),
+            last_login=datetime.utcnow(),
+        )
+        session.add(user)
+
+    session.commit()
+    return user
+
+
 @app.get("/callback")
 async def callback(code: str, request: Request):
     """Handle Spotify OAuth callback."""
@@ -230,19 +252,25 @@ async def callback(code: str, request: Request):
             return RedirectResponse(url="/")
 
         # Store token info in session
-        request.session.clear()  # Clear any existing session data
+        request.session.clear()
         request.session["token_info"] = token_info
 
-        # Get and store user info
+        # Get user info from Spotify
         spotify = Spotify(auth=token_info["access_token"])
         current_user = spotify.current_user()
-        request.session["user_name"] = current_user["display_name"]
-        request.session["user_id"] = current_user["id"]  # Store user ID
 
-        # Set admin status if applicable
+        # Sync user to database
+        session = next(get_session())
+        user = await sync_spotify_user(session, current_user)
+
+        # Update session with user info
+        request.session["user_name"] = user.name
+        request.session["user_id"] = user.spotify_id
+        request.session["db_user_id"] = user.id
+
+        # Handle admin status
         if current_user["id"] == settings.SPOTIFY_ADMIN_USERNAME:
             request.session["admin"] = True
-            session = next(get_session())
             # Check if admin already exists
             admin = session.query(Admin).filter(Admin.spotify_id == current_user["id"]).first()
             if not admin:
@@ -252,7 +280,7 @@ async def callback(code: str, request: Request):
 
         return RedirectResponse(url="/")
     except Exception as e:
-        print(f"Callback error: {e}")  # Add logging
+        print(f"Callback error: {e}")
         request.session.clear()
         return RedirectResponse(url="/")
 
@@ -275,10 +303,10 @@ async def admin_panel(request: Request):
     # Get managed public playlists from database
     session = next(get_session())
     managed_playlists = (
-        session.query(PublicPlaylist)
+        session.query(FeaturedPlaylist)
         .join(PlaylistManager)
         .filter(PlaylistManager.user_id == current_user["id"])
-        .filter(PublicPlaylist.is_active == True)
+        .filter(FeaturedPlaylist.is_active)
         .all()
     )
 
@@ -292,6 +320,7 @@ async def admin_panel(request: Request):
     )
 
 
+# TODO: rename this to create_featured_playlist and take interface input for management
 @app.post("/admin/create_public_playlist")
 @spotify_error_handler
 async def create_public_playlist(
@@ -312,11 +341,15 @@ async def create_public_playlist(
     session = next(get_session())
 
     # Create public playlist entry
-    public_playlist = PublicPlaylist(
+    public_playlist = FeaturedPlaylist(
         spotify_id=playlist_id,
         name=playlist["name"],
-        description=description,
-        created_by_id=current_user["id"],
+        description=description or "",
+        created_by_id=current_user["id"],  # Change from created_by_id to creator_id
+        creator_id=current_user["id"],  # Add this line
+        is_active=True,
+        is_visible=True,
+        contribution_rules={},
     )
     session.add(public_playlist)
     session.flush()  # Get the ID before committing
@@ -341,17 +374,17 @@ async def create_public_playlist(
 
 @app.post("/admin/add_manager")
 @spotify_error_handler
-async def add_playlist_manager(
+async def add_user_as_manager(
     request: Request,
     playlist_id: int = Form(...),
     user_id: str = Form(...),
 ):
-    """Add a manager to a public playlist."""
+    """Add a user as manager to a public playlist."""
     spotify = await get_spotify(request.session)
     current_user = spotify.current_user()
 
     session = next(get_session())
-    playlist = session.get(PublicPlaylist, playlist_id)
+    playlist = session.get(FeaturedPlaylist, playlist_id)
 
     if not playlist:
         raise HTTPException(status_code=404, detail="Playlist not found")
@@ -390,7 +423,7 @@ async def playlist_details(playlist_id: str, request: Request):
     current_user = spotify.current_user()
 
     session = next(get_session())
-    public_playlist = session.query(PublicPlaylist).filter(PublicPlaylist.spotify_id == playlist_id).first()
+    public_playlist = session.query(FeaturedPlaylist).filter(FeaturedPlaylist.spotify_id == playlist_id).first()
 
     if not public_playlist:
         raise HTTPException(status_code=404, detail="Playlist not found")
@@ -434,10 +467,10 @@ async def playlist_details(playlist_id: str, request: Request):
 
 
 # Routes - API
-@app.get("/api/search_tracks")
+@app.get("/search")  # Change from /api/search_tracks to /search
 @spotify_error_handler
-async def search_tracks(q: str, request: Request):
-    """Search for tracks."""
+async def search_tracks(q: str, request: Request):  # Remove "user_" from function name
+    """Search for tracks available to the user."""
     if len(q) < 2:
         return {"tracks": []}
 
@@ -463,23 +496,30 @@ async def search_tracks(q: str, request: Request):
     }
 
 
-@app.post("/add_song")
+@app.post("/api/add_song")  # Changed from /add_song to /api/add_song
 @spotify_error_handler
-async def add_song(request: Request, track_id: str = Form(...)):
-    """Add a song to the playlist."""
+async def add_track(request: Request, track_id: str = Form(...), playlist_id: str = Form(...)):
+    """Add a track to the playlist."""
     spotify = await get_spotify(request.session)
-    if not settings.PUBLIC_PLAYLIST_ID:
-        flash(request, "No public playlist configured", "error")
-        raise HTTPException(status_code=400, detail="No public playlist configured")
+
+    session = next(get_session())
+    featured_playlist = (
+        session.query(FeaturedPlaylist)
+        .filter(FeaturedPlaylist.spotify_id == playlist_id, FeaturedPlaylist.is_active == True)
+        .first()
+    )
+
+    if not featured_playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
 
     track = spotify.track(track_id)
-    playlist = spotify.playlist(settings.PUBLIC_PLAYLIST_ID)
+    playlist = spotify.playlist(playlist_id)
 
-    existing_tracks = spotify.playlist_tracks(settings.PUBLIC_PLAYLIST_ID)
+    existing_tracks = spotify.playlist_tracks(playlist_id)
     if any(item["track"]["id"] == track_id for item in existing_tracks["items"]):
         return JSONResponse(status_code=409, content={"message": f'"{track["name"]}" is already in the playlist'})
 
-    spotify.playlist_add_items(settings.PUBLIC_PLAYLIST_ID, [track_id])
+    spotify.playlist_add_items(playlist_id, [track_id])
     return {
         "message": f'Added "{track["name"]}" to {playlist["name"]}',
         "track": {
@@ -493,8 +533,8 @@ async def add_song(request: Request, track_id: str = Form(...)):
 
 @app.post("/remove_song")
 @spotify_error_handler
-async def remove_song(request: Request, track_id: str = Form(...), playlist_id: str | None = Form(None)):
-    """Remove a song from the playlist."""
+async def remove_track(request: Request, track_id: str = Form(...), playlist_id: str | None = Form(None)):
+    """Remove a track from the playlist."""
     spotify = await get_spotify(request.session)
     playlist_id = playlist_id or settings.PUBLIC_PLAYLIST_ID
     if not playlist_id:
@@ -525,18 +565,17 @@ async def playlist_stats(playlist_id: str, request: Request):
 
 @app.get("/api/suggestions")
 @spotify_error_handler
-async def get_suggestions(request: Request):
+async def get_suggestions(request: Request, playlist_id: str | None = None):
     """Get track suggestions."""
     spotify = await get_spotify(request.session)
 
-    if not settings.PUBLIC_PLAYLIST_ID:
-        # Return popular tracks if no public playlist
+    if not playlist_id:
+        # Return popular tracks if no playlist selected
         recommendations = spotify.recommendations(limit=6, seed_genres=["pop"])
     else:
-        # Get recommendations based on current playlist tracks
-        playlist_tracks = spotify.playlist_tracks(settings.PUBLIC_PLAYLIST_ID)
+        # Get recommendations based on selected playlist tracks
+        playlist_tracks = spotify.playlist_tracks(playlist_id)
         seed_tracks = [item["track"]["id"] for item in playlist_tracks["items"][:5]]
-
         recommendations = spotify.recommendations(limit=6, seed_tracks=seed_tracks, min_popularity=30)
 
     return {
@@ -553,6 +592,41 @@ async def get_suggestions(request: Request):
             for track in recommendations["tracks"]
         ]
     }
+
+
+@app.post("/api/featured_playlists")
+@spotify_error_handler
+async def manage_featured_playlists(
+    request: Request,
+    playlist_ids: list[str] = Form(...),
+):
+    """Set featured playlists."""
+    if not request.session.get("admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    spotify = await get_spotify(request.session)
+    current_user = spotify.current_user()
+
+    session = next(get_session())
+
+    # Deactivate all current featured playlists
+    session.query(FeaturedPlaylist).update({"is_active": False})
+
+    for playlist_id in playlist_ids[:3]:  # Limit to 3 playlists
+        try:
+            playlist = spotify.playlist(playlist_id)
+            featured = FeaturedPlaylist(
+                spotify_id=playlist_id,
+                name=playlist["name"],
+                description=playlist.get("description"),
+                created_by_id=current_user["id"],
+            )
+            session.add(featured)
+        except SpotifyException:
+            continue
+
+    session.commit()
+    return {"message": "Featured playlists updated"}
 
 
 # Routes - Static Pages

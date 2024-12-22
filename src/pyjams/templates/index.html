@@ -89,9 +89,9 @@ document.addEventListener('DOMContentLoaded', function() {
 {% block scripts %}
 <script>
 const searchUrl = "{{ url_for('search_tracks') }}";
-const addSongUrl = "{{ url_for('add_song') }}";
-const removeSongUrl = "{{ url_for('remove_song') }}";
-const playlistStatsUrl = "{{ url_for('playlist_stats', playlist_id='PLAYLIST_ID') }}";
+const addSongUrl = "{{ url_for('add_track') }}";
+const removeSongUrl = "{{ url_for('remove_track') }}";
+const playlistStatsUrl = "{{ url_for('playlist_stats', playlist_id='PLAYLIST_ID') }}".replace('PLAYLIST_ID', ''); // Updated
 </script>
 <script src="{{ url_for('js/search.js') }}"></script>
 <script src="{{ url_for('js/main.js') }}"></script>

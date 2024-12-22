@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         searchTimeout = setTimeout(async () => {
             try {
-                const response = await fetch(`/api/search_tracks?q=${encodeURIComponent(query)}`);
+                const response = await fetch(`/search?q=${encodeURIComponent(query)}`); // Updated path
                 const data = await response.json();
                 
                 searchResults.innerHTML = data.tracks.map(track => `
@@ -38,8 +38,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         try {
                             const formData = new FormData();
                             formData.append('track_id', trackId);
+                            formData.append('playlist_id', currentPlaylistId); // Make sure this is defined
                             
-                            const response = await fetch('/add_song', {
+                            const response = await fetch('/api/add_song', { // Updated path
                                 method: 'POST',
                                 body: formData
                             });
@@ -54,7 +55,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         } catch (error) {
                             console.error('Error:', error);
-                            alert('Error adding track');
+                            PyJams.showError('Error adding track');
                         }
                     });
                 });

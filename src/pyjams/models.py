@@ -1,7 +1,7 @@
 import os
 from datetime import datetime
-from enum import Enum
-from typing import Any
+from enum import Enum, Flag, auto
+from typing import Any, Self
 
 from pydantic import Field as PydanticField
 from pydantic_settings import BaseSettings
@@ -14,10 +14,9 @@ from sqlmodel import Field, Relationship, Session, SQLModel, create_engine
 class Settings(BaseSettings):
     """Application settings."""
 
-    SPOTIFY_CLIENT_ID: str = PydanticField(..., description="Spotify API client ID")
-    SPOTIFY_CLIENT_SECRET: str = PydanticField(..., description="Spotify API client secret")
-    SPOTIFY_ADMIN_USERNAME: str = PydanticField(..., description="Spotify admin user ID")
-    PUBLIC_PLAYLIST_ID: str = PydanticField("", description="Current public playlist ID")
+    SPOTIFY_CLIENT_ID: str = PydanticField(..., description="Spotify API client ID (pyjams)")
+    SPOTIFY_CLIENT_SECRET: str = PydanticField(..., description="Spotify API client secret (pyjams)")
+    SPOTIFY_ADMIN_USERNAME: str = PydanticField(..., description="The Spotify username (numerical) of the admin user")
     SECRET_KEY: str = PydanticField(default_factory=lambda: os.urandom(24).hex())
     BASE_URL: str = "http://127.0.0.1:4884"
     DATABASE_URL: str = "sqlite:///pyjams.db"
@@ -30,14 +29,47 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
+class Permission(Flag):
+    NONE = 0
+    VIEW = auto()  # Basic viewing permission
+    SEARCH = auto()  # Can search for songs
+    SUGGEST = auto()  # Can suggest songs
+    VOTE = auto()  # Can vote on songs
+    ADD_SONGS = auto()  # Can directly add songs
+    REMOVE_SONGS = auto()  # Can remove songs
+    MANAGE_PLAYLIST = auto()  # Can edit playlist details
+    MANAGE_USERS = auto()  # Can manage other users
+    MODERATE = auto()  # Can moderate content
+    ADMIN = auto()  # Full administrative access
+
+    # Common permission sets
+    BASIC = VIEW | SEARCH
+    CONTRIBUTOR = BASIC | SUGGEST | VOTE
+    MANAGER = CONTRIBUTOR | ADD_SONGS | REMOVE_SONGS | MANAGE_PLAYLIST
+    MODERATOR = MANAGER | MODERATE
+    ALL = ~NONE
+
+
 class UserRole(str, Enum):
     GUEST = "guest"
     USER = "user"
+    MANAGER = "manager"
+    MODERATOR = "moderator"
     ADMIN = "admin"
+
+    @property
+    def permissions(self) -> Permission:
+        return {
+            self.GUEST: Permission.BASIC,
+            self.USER: Permission.CONTRIBUTOR,
+            self.MANAGER: Permission.MANAGER,
+            self.MODERATOR: Permission.MODERATOR,
+            self.ADMIN: Permission.ALL,
+        }[self]
 
 
 class User(SQLModel, table=True):
-    """Replaces the Admin model with expanded user management."""
+    """User model with role-based permissions."""
 
     id: int | None = Field(default=None, primary_key=True)
     spotify_id: str | None = Field(unique=True, index=True, nullable=True)  # Nullable for guest users
@@ -51,6 +83,35 @@ class User(SQLModel, table=True):
     # Relationships
     featured_playlists: list["FeaturedPlaylist"] = Relationship(back_populates="creator")
     managed_playlists: list["PlaylistManager"] = Relationship(back_populates="manager")
+
+    def has_permission(self, permission: Permission) -> bool:
+        """Check if user has specific permission."""
+        return bool(self.role.permissions & permission)
+
+    def has_permissions(self, *permissions: Permission) -> bool:
+        """Check if user has all specified permissions."""
+        required = Permission.NONE
+        for permission in permissions:
+            required |= permission
+        return bool(self.role.permissions & required == required)
+
+    def can_manage_playlist(self, playlist_id: int) -> bool:
+        """Check if user can manage a specific playlist."""
+        if self.is_admin:
+            return True
+        return any(pm.is_active and pm.playlist_id == playlist_id for pm in self.managed_playlists)
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == UserRole.ADMIN
+
+    @property
+    def is_moderator(self) -> bool:
+        return self.role in (UserRole.MODERATOR, UserRole.ADMIN)
+
+    @classmethod
+    def get_by_spotify_id(cls, session: Session, spotify_id: str) -> Self | None:
+        return session.query(cls).filter(cls.spotify_id == spotify_id).first()
 
 
 class FeaturedPlaylist(SQLModel, table=True):
@@ -70,6 +131,19 @@ class FeaturedPlaylist(SQLModel, table=True):
     creator: User = Relationship(back_populates="featured_playlists")
     managers: list["PlaylistManager"] = Relationship(back_populates="playlist")
 
+    def user_can_manage(self, user: User) -> bool:
+        """Check if user can manage this playlist."""
+        if user.is_admin or user.id == self.creator_id:
+            return True
+        return any(pm.is_active for pm in self.managers if pm.user_id == user.id)
+
+    def add_manager(self, session: Session, user: User, permissions: dict[str, Any] | None = None) -> "PlaylistManager":
+        manager = PlaylistManager(
+            playlist_id=self.id, user_id=user.id, permissions=permissions or {"can_edit": True, "can_delete": False}
+        )
+        session.add(manager)
+        return manager
+
 
 class PlaylistManager(SQLModel, table=True):
     """Model for users who can manage a featured playlist."""
@@ -79,11 +153,23 @@ class PlaylistManager(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id")
     added_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = Field(default=True)
-    permissions: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    permissions: dict[str, Any] = Field(
+        default_factory=lambda: {
+            "can_edit": True,
+            "can_delete": False,
+            "can_manage_users": False,
+            "can_moderate": False,
+        },
+        sa_column=Column(JSON),
+    )
 
     # Relationships
     playlist: FeaturedPlaylist = Relationship(back_populates="managers")
     manager: User = Relationship(back_populates="managed_playlists")
+
+    def has_permission(self, permission_key: str) -> bool:
+        """Check if manager has specific playlist permission."""
+        return bool(self.is_active and self.permissions.get(permission_key, False))
 
 
 class ModerationAction(SQLModel, table=True):
@@ -100,6 +186,24 @@ class ModerationAction(SQLModel, table=True):
     # Relationships
     playlist: FeaturedPlaylist = Relationship()
     moderator: User = Relationship()
+
+
+class Admin(SQLModel, table=True):
+    """Admin model for storing admin users."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    spotify_id: str = Field(unique=True, index=True)
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    is_active: bool = Field(default=True)
+
+    @property
+    def user(self) -> User | None:
+        """Get associated user record."""
+        from sqlmodel import Session
+
+        with Session(engine) as session:
+            return session.query(User).filter(User.spotify_id == self.spotify_id).first()
 
 
 # Database setup

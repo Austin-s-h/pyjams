@@ -20,6 +20,7 @@ A Flask web application that allows users to manage Spotify playlists collaborat
    - Allow non-authenticated users to contribute to public playlists
    - Maintain admin controls while expanding access
    - Implement rate limiting and moderation features
+   - Have updated the user permissions model such that there are guest, user, moderator, and admin levels. The admin is the owner of the Spotify application and deployment of the server. A user is anyone who successfully logs in with Spotify, a moderator must be set by an admin, and the admin is set by spotify_id on startup.
 
 2. Production Readiness
    - Migration from development server to production server
@@ -51,7 +52,6 @@ Determine who is going to be the administrator and retrieve their public Spotify
 export SPOTIFY_CLIENT_ID="your_client_id"
 export SPOTIFY_CLIENT_SECRET="your_client_secret"
 export SPOTIFY_ADMIN_USERNAME="your_spotify_username" # typically all numerical
-export PUBLIC_PLAYLIST_ID="your_playlist_id"  # Optional
 ```
 
 4. Run the development server:

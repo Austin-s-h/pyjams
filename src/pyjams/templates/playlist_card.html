@@ -1,0 +1,38 @@
+{% macro playlist_card(playlist, user_permissions) %}
+<div class="card bg-dark text-light border-secondary h-100">
+    <div class="card-body">
+        <h5 class="card-title">{{ playlist.name }}</h5>
+        <p class="card-text">{{ playlist.description or '' }}</p>
+        
+        <div class="btn-group" role="group">
+            {% if Permission.VIEW in user_permissions %}
+            <a href="{{ url_for('view_playlist', playlist_id=playlist.id) }}" 
+               class="btn btn-primary">
+                <i class="fas fa-eye"></i> View
+            </a>
+            {% endif %}
+            
+            {% if Permission.ADD_SONGS in user_permissions %}
+            <button class="btn btn-success" 
+                    onclick="showAddSongModal('{{ playlist.id }}')">
+                <i class="fas fa-plus"></i> Add Song
+            </button>
+            {% endif %}
+            
+            {% if Permission.MANAGE_PLAYLIST in user_permissions %}
+            <button class="btn btn-info" 
+                    onclick="showPlaylistManagerModal('{{ playlist.id }}')">
+                <i class="fas fa-cog"></i> Manage
+            </button>
+            {% endif %}
+            
+            {% if Permission.MODERATE in user_permissions %}
+            <button class="btn btn-warning" 
+                    onclick="showModerationModal('{{ playlist.id }}')">
+                <i class="fas fa-shield-alt"></i> Moderate
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}
