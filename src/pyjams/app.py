@@ -164,7 +164,7 @@ async def index(request: Request):
     query = request.query_params.get("q", "")
     tracks = None
 
-    # Get public playlists
+    # Get public playlists and enrich with Spotify data
     session = next(get_session())
     public_playlists = session.query(PublicPlaylist).filter(PublicPlaylist.is_active == True).all()
 

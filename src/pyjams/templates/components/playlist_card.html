@@ -1,8 +1,10 @@
 {% macro playlist_card(playlist, is_manager=False) %}
-<div class="card h-100 bg-dark text-light border-secondary" data-id="{{ playlist.id }}" data-spotify-id="{{ playlist.spotify_id }}">
-    <img src="{{ playlist.image_url if playlist.image_url else '/static/images/default-playlist.png' }}" 
-         class="card-img-top" 
-         alt="{{ playlist.name }}">
+<div class="card bg-dark text-light h-100 border-secondary">
+    <a href="{{ url_for('playlist_details', playlist_id=playlist.spotify_id) }}" class="text-decoration-none">
+        <img src="{{ playlist.images[0].url if playlist.images and playlist.images|length > 0 else url_for('images/default-playlist.png') }}" 
+             class="card-img-top" 
+             alt="{{ playlist.name }}">
+    </a>
     <div class="playlist-card-content">
         <div class="playlist-info">
             <h3>{{ playlist.name }}</h3>

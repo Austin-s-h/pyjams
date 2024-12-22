@@ -9,7 +9,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <h2 class="text-light mb-3">Public Playlists</h2>
-            {% if public_playlists %}
+            {% if public_playlists and public_playlists|length > 0 %}
             <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
                 {% for playlist in public_playlists %}
                 <div class="col">
