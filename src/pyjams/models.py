@@ -1,10 +1,13 @@
 import os
 from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from pydantic import Field as PydanticField
 from pydantic_settings import BaseSettings
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
+from sqlalchemy import JSON, Column
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine
 
 
@@ -27,48 +30,76 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-class Admin(SQLModel, table=True):
+class UserRole(str, Enum):
+    GUEST = "guest"
+    USER = "user"
+    ADMIN = "admin"
+
+
+class User(SQLModel, table=True):
+    """Replaces the Admin model with expanded user management."""
+
     id: int | None = Field(default=None, primary_key=True)
-    spotify_id: str = Field(unique=True, index=True)
+    spotify_id: str | None = Field(unique=True, index=True, nullable=True)  # Nullable for guest users
     name: str | None = None
+    email: str | None = Field(unique=True, index=True, nullable=True)
+    role: UserRole = Field(default=UserRole.GUEST)
+    is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_login: datetime | None = None
+
+    # Relationships
+    featured_playlists: list["FeaturedPlaylist"] = Relationship(back_populates="creator")
+    managed_playlists: list["PlaylistManager"] = Relationship(back_populates="manager")
 
 
-class Playlist(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    spotify_id: str = Field(unique=True, index=True)
-    name: str
-    is_active: bool = Field(default=False)
-    admin_id: int = Field(foreign_key="admin.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class PublicPlaylist(SQLModel, table=True):
-    """Model for public playlists that can be managed by users."""
+class FeaturedPlaylist(SQLModel, table=True):
+    """Renamed from PublicPlaylist for better clarity."""
 
     id: int | None = Field(default=None, primary_key=True)
     spotify_id: str = Field(unique=True, index=True)
     name: str = Field()
     description: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    created_by_id: str = Field(foreign_key="admin.spotify_id")
+    creator_id: int = Field(foreign_key="user.id")
     is_active: bool = Field(default=True)
+    is_visible: bool = Field(default=True)  # For moderation
+    contribution_rules: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
     # Relationships
+    creator: User = Relationship(back_populates="featured_playlists")
     managers: list["PlaylistManager"] = Relationship(back_populates="playlist")
 
 
 class PlaylistManager(SQLModel, table=True):
-    """Model for users who can manage a public playlist."""
+    """Model for users who can manage a featured playlist."""
 
     id: int | None = Field(default=None, primary_key=True)
-    playlist_id: int = Field(foreign_key="publicplaylist.id")
-    user_id: str = Field(foreign_key="admin.spotify_id")
+    playlist_id: int = Field(foreign_key="featuredplaylist.id")
+    user_id: int = Field(foreign_key="user.id")
     added_at: datetime = Field(default_factory=datetime.utcnow)
     is_active: bool = Field(default=True)
+    permissions: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
     # Relationships
-    playlist: PublicPlaylist = Relationship(back_populates="managers")
+    playlist: FeaturedPlaylist = Relationship(back_populates="managers")
+    manager: User = Relationship(back_populates="managed_playlists")
+
+
+class ModerationAction(SQLModel, table=True):
+    """Track moderation actions on playlists."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    playlist_id: int = Field(foreign_key="featuredplaylist.id")
+    moderator_id: int = Field(foreign_key="user.id")
+    action_type: str  # e.g., "hide", "unhide", "warn", etc.
+    reason: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    action_metadata: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))  # Renamed from metadata
+
+    # Relationships
+    playlist: FeaturedPlaylist = Relationship()
+    moderator: User = Relationship()
 
 
 # Database setup
