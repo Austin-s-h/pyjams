@@ -392,21 +392,31 @@ async def playlist_details(playlist_id: str, request: Request):
     session = next(get_session())
     public_playlist = session.query(PublicPlaylist).filter(PublicPlaylist.spotify_id == playlist_id).first()
 
+    if not public_playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
     playlist, tracks = await get_playlist_info(spotify, playlist_id)
 
+    # Get playlist managers
+    playlist_managers = (
+        session.query(PlaylistManager)
+        .filter(PlaylistManager.playlist_id == public_playlist.id, PlaylistManager.is_active == True)
+        .order_by(PlaylistManager.added_at.desc())
+        .all()
+    )
+
+    # Calculate stats
+    total_ms = sum(item["track"]["duration_ms"] for item in tracks["items"] if item["track"])
+    total_minutes = round(total_ms / (1000 * 60))
+
+    stats = {
+        "followers": playlist["followers"]["total"],
+        "track_count": len(tracks["items"]),
+        "duration": f"{total_minutes} min",
+    }
+
     # Check if user is a manager
-    is_manager = False
-    if public_playlist:
-        is_manager = (
-            session.query(PlaylistManager)
-            .filter(
-                PlaylistManager.playlist_id == public_playlist.id,
-                PlaylistManager.user_id == current_user["id"],
-                PlaylistManager.is_active == True,
-            )
-            .first()
-            is not None
-        )
+    is_manager = any(manager.user_id == current_user["id"] for manager in playlist_managers)
 
     return render_template(
         "playlist.html",
@@ -416,7 +426,9 @@ async def playlist_details(playlist_id: str, request: Request):
             "tracks": tracks["items"],
             "current_user": current_user,
             "public_playlist": public_playlist,
+            "playlist_managers": playlist_managers,
             "is_manager": is_manager,
+            "stats": stats,
         },
     )
 

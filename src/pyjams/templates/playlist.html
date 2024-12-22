@@ -1,40 +1,171 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="playlist-view">
-    <div class="playlist-container">
-        <header class="playlist-header">
-            <h1>{{ playlist.name }}</h1>
-            {% if playlist.description %}
-                <p class="playlist-description">{{ playlist.description }}</p>
-            {% endif %}
-        </header>
-        
-        <div class="spotify-player-full">
-            <iframe src="https://open.spotify.com/embed/playlist/{{ playlist.id }}?utm_source=generator&theme=0"
-                    width="100%" 
-                    height="100%" 
-                    frameborder="0" 
-                    allowfullscreen="" 
-                    allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
-                    loading="lazy">
-            </iframe>
+<div class="container py-4">
+    <div class="row">
+        <!-- Playlist Header -->
+        <div class="col-12 mb-4">
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body">
+                    <div class="d-flex align-items-start">
+                        <img src="{{ playlist.images[0].url if playlist.images else url_for('images/default-playlist.png') }}" 
+                             alt="{{ playlist.name }}" 
+                             class="playlist-cover me-4"
+                             style="width: 200px; height: 200px; object-fit: cover;">
+                        <div class="flex-grow-1">
+                            <h1 class="display-4">{{ playlist.name }}</h1>
+                            {% if public_playlist %}
+                                <p class="text-muted">Created by {{ public_playlist.created_by_id }} 
+                                    on {{ public_playlist.created_at.strftime('%B %d, %Y') }}</p>
+                                {% if public_playlist.description %}
+                                    <p class="lead">{{ public_playlist.description }}</p>
+                                {% endif %}
+                            {% endif %}
+                            
+                            <!-- Stats Cards -->
+                            <div class="row mt-3">
+                                <div class="col-md-3">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-body text-center">
+                                            <h3 class="card-title">{{ stats.track_count }}</h3>
+                                            <p class="card-text text-muted">Tracks</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-body text-center">
+                                            <h3 class="card-title">{{ stats.duration }}</h3>
+                                            <p class="card-text text-muted">Duration</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-body text-center">
+                                            <h3 class="card-title">{{ stats.followers }}</h3>
+                                            <p class="card-text text-muted">Followers</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card bg-dark border-secondary">
+                                        <div class="card-body text-center">
+                                            <h3 class="card-title">{{ playlist_managers|length }}</h3>
+                                            <p class="card-text text-muted">Managers</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        {% if settings.ADMIN_USERNAME == current_user.id %}
-            <div class="admin-controls">
-                {% if playlist.id == settings.PUBLIC_PLAYLIST_ID %}
-                    <div class="status-badge">Current Public Playlist</div>
-                {% else %}
-                    <form action="{{ url_for('set_public_playlist') }}" method="POST" class="set-public-form">
-                        <input type="hidden" name="playlist_id" value="{{ playlist.id }}">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-check"></i> Set as Public Playlist
-                        </button>
-                    </form>
-                {% endif %}
+        <!-- Main Content -->
+        <div class="col-md-8">
+            <!-- Tracks List -->
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-header border-secondary">
+                    <h3 class="card-title mb-0">Tracks</h3>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for track in tracks %}
+                    <div class="list-group-item bg-dark text-light border-secondary">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ track.track.album.images[0].url }}" 
+                                 alt="{{ track.track.name }}" 
+                                 class="me-3"
+                                 style="width: 50px; height: 50px;">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-0">{{ track.track.name }}</h5>
+                                <small class="text-muted">
+                                    {{ track.track.artists|map(attribute='name')|join(', ') }}
+                                    • {{ track.track.album.name }}
+                                </small>
+                            </div>
+                            {% if is_manager %}
+                            <button class="btn btn-outline-danger btn-sm ms-2" 
+                                    onclick="removeSong('{{ track.track.id }}')">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-        {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Managers Section -->
+            <div class="card bg-dark text-light border-secondary mb-4">
+                <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Playlist Managers</h4>
+                    {% if is_manager %}
+                    <button class="btn btn-primary btn-sm" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#playlistManagerModal">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for manager in playlist_managers %}
+                    <div class="list-group-item bg-dark text-light border-secondary">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">{{ manager.user_id }}</h6>
+                                <small class="text-muted">Added {{ manager.added_at.strftime('%B %d, %Y') }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Spotify Player -->
+            <div class="card bg-dark text-light border-secondary">
+                <div class="card-body p-0" style="height: 380px;">
+                    <iframe src="https://open.spotify.com/embed/playlist/{{ playlist.id }}?utm_source=generator&theme=0"
+                            width="100%" 
+                            height="100%" 
+                            frameborder="0" 
+                            allowfullscreen="" 
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                            loading="lazy">
+                    </iframe>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+async function removeSong(trackId) {
+    if (!confirm('Are you sure you want to remove this song?')) return;
+    
+    try {
+        const response = await fetch('/remove_song', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `track_id=${trackId}&playlist_id={{ playlist.id }}`
+        });
+        
+        const data = await response.json();
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert(data.detail || 'Error removing song');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error removing song');
+    }
+}
+</script>
 {% endblock %}
