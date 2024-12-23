@@ -43,3 +43,4 @@ typing-extensions==4.12.2
 urllib3==2.2.3
 uv==0.5.10
 uvicorn==0.34.0
+-e .
