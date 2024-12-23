@@ -87,11 +87,11 @@
 {% block scripts %}
 <script>
 // Update API endpoints with direct paths
-const searchUrl = "/api/search";
-const addSongUrl = "/api/songs/add";
-const removeSongUrl = "/api/songs/remove";
+const searchUrl = "{{ url_for('search_tracks') }}";
+const addSongUrl = "{{ url_for('add_track') }}";
+const removeSongUrl = "{{ url_for('remove_track') }}";
 const currentPlaylistId = document.getElementById('currentPlaylistId').value;
 </script>
-<script src="{{ url_for('js/search.js') }}"></script>
-<script src="{{ url_for('js/main.js') }}"></script>
+<script src="{{ static_url('js/search.js') }}"></script>
+<script src="{{ static_url('js/main.js') }}"></script>
 {% endblock %}

@@ -19,11 +19,13 @@ class Settings(BaseSettings):
     SPOTIFY_CLIENT_SECRET: str = PydanticField(..., description="Spotify API client secret (pyjams)")
     SPOTIFY_ADMIN_USERNAME: str = PydanticField(..., description="The Spotify username (numerical) of the admin user")
     SECRET_KEY: str = PydanticField(default_factory=lambda: os.urandom(24).hex())
-    BASE_URL: str = "http://127.0.0.1:4884"
+    BASE_URL: str = "http://127.0.0.1:5006"
     DATABASE_URL: str = Field(
         default=os.getenv("DATABASE_URL", None),
         description="Database URL (defaults to local if DATABASE_URL not set)",
     )
+    DEBUG: bool = False
+    STATIC_ROOT: str = "staticfiles"
 
     class Config:
         env_file = ".env"

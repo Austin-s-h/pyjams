@@ -13,6 +13,7 @@ from spotipy.exceptions import SpotifyException
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 from starlette.templating import _TemplateResponse
+from whitenoise import WhiteNoise
 
 from pyjams.models import (
     Admin,
@@ -29,7 +30,10 @@ from pyjams.models import (
 )
 
 # Configuration
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+STATIC_ROOT = BASE_DIR / settings.STATIC_ROOT
+STATIC_DIR = BASE_DIR / "src" / "pyjams" / "static"
+
 app = FastAPI(
     title="PyJams",
     description="A collaborative playlist manager for Spotify",
@@ -38,16 +42,41 @@ app = FastAPI(
 )
 
 # Static files and templates setup
-static_dir = BASE_DIR / "static"
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates_dir = BASE_DIR / "src" / "pyjams" / "templates"
+templates = Jinja2Templates(directory=str(templates_dir))
 
-# Update the url_for function in globals
+# Configure static files for both development and production
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Configure WhiteNoise for production static files
+if not settings.DEBUG:  # Only use WhiteNoise in production
+    app = WhiteNoise(
+        app,
+        root=str(STATIC_ROOT),
+        prefix="/static/",
+        autorefresh=False,
+        max_age=31536000,  # 1 year cache
+    )
+
+
+# Update the url_for function to handle both development and production URLs
+def static_url(path: str) -> str:
+    """Generate URL for static assets."""
+    return f"/static/{path.lstrip('/')}"
+
+
+def url_for(name: str, **params: dict) -> str:
+    """Enhanced URL generator supporting both routes and static files."""
+    if isinstance(name, str) and name.startswith(("css/", "js/", "images/")):
+        return static_url(name)
+    return app.url_path_for(name, **params)
+
+
+# Update template globals with both functions
 templates.env.globals.update(
     {
-        "url_for": lambda name, **params: (
-            app.url_path_for(name, **params) if not name.startswith(("css/", "js/", "images/")) else f"/static/{name}"
-        ),
+        "url_for": url_for,
+        "static_url": static_url,
         "current_year": lambda: datetime.now().year,
     }
 )

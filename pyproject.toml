@@ -15,6 +15,7 @@ dependencies = [
   "pydantic-settings>=2.7.0",
   "psycopg2-binary>=2.9.10",
   "gunicorn>=23.0.0",
+  "whitenoise>=6.6.0",
 ]
 description = "Add your description here"
 name = "pyjams"

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from invoke import task
 
 
@@ -50,8 +52,10 @@ def configure_env(ctx):
 
 @task
 def deploy(ctx):
-    """Deploy to Heroku."""
+    """Deploy to Heroku with static files."""
     verify(ctx)
+    ctx.run("git add staticfiles")
+    ctx.run('git commit -m "Update static files" || true')
     ctx.run("git push heroku main")
 
 
@@ -66,7 +70,7 @@ def deploy(ctx):
 @task
 def serve(ctx):
     """Run the development server."""
-    ctx.run("uvicorn pyjams.app:app --host=127.0.0.1 --port=4884 --reload")
+    ctx.run("uvicorn pyjams.app:app --host=127.0.0.1 --port=5006 --reload")
 
 
 @task
@@ -85,3 +89,23 @@ def logs(ctx):
 def scale(ctx, dynos=1):
     """Scale Heroku dynos."""
     ctx.run(f"heroku ps:scale web={dynos}")
+
+
+@task
+def collectstatic(ctx):
+    """Collect static files for production deployment."""
+    static_root = Path("staticfiles")
+    static_dir = Path("src/pyjams/static")
+
+    # Ensure directories exist
+    static_root.mkdir(exist_ok=True)
+
+    # Clear existing files
+    ctx.run(f"rm -rf {static_root}/*")
+
+    # Copy static files
+    if static_dir.exists():
+        ctx.run(f"cp -r {static_dir}/* {static_root}/")
+        print(f"Collected static files to {static_root}")
+    else:
+        print(f"Warning: Static directory {static_dir} not found")

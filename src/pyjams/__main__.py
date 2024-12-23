@@ -14,7 +14,7 @@ def main():
         # Use uvicorn in development
         import uvicorn
 
-        uvicorn.run("pyjams.app:app", host="127.0.0.1", port=4884, reload=True)
+        uvicorn.run("pyjams.app:app", host="127.0.0.1", port=5006, reload=True)
 
 
 if __name__ == "__main__":

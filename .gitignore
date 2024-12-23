@@ -11,3 +11,7 @@ wheels/
 .cache
 .env
 *.db
+
+# Static files
+/staticfiles/*
+!/staticfiles/.gitkeep
