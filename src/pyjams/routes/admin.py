@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from spotipy import Spotify, SpotifyException
 

@@ -196,23 +196,15 @@ async def index(request: Request):
     )
 
 
-# Register routes
-app.add_api_route("/", index, methods=["GET"])
-app.add_api_route("/auth", auth.auth, methods=["GET"])
-app.add_api_route("/callback", auth.callback, methods=["GET"])
-app.add_api_route("/admin", admin.admin_panel, methods=["GET"])
-app.add_api_route("/playlist/{playlist_id}", playlist.playlist_details, methods=["GET"])
-app.add_api_route("/admin/add_manager", admin.add_user_as_manager, methods=["POST"])
+@app.get("/privacy")
+@spotify_error_handler
+async def privacy_policy(request: Request):
+    """Render privacy policy page."""
+    return render_template("privacy.html", {"request": request})
 
 
-# Register routes - API
-app.add_api_route("/api/search", api.search_tracks, methods=["GET"])
-app.add_api_route("/api/songs/add", api.add_track, methods=["POST"])
-app.add_api_route("/api/songs/remove", api.remove_track, methods=["POST"])
-app.add_api_route("/api/playlist_stats/{playlist_id}", api.playlist_stats, methods=["GET"])
-app.add_api_route("/api/suggestions", api.get_suggestions, methods=["GET"])
-app.add_api_route("/api/featured_playlists", api.manage_featured_playlists, methods=["POST"])
-
-# Register routes - Pages
-app.add_api_route("/", index, methods=["GET"])
-app.add_api_route("/privacy", privacy_policy, methods=["GET"])
+# Register route groups
+app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(api.router)
+app.include_router(playlist.router)

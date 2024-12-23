@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from starlette.status import HTTP_403_FORBIDDEN
 
-from pyjams.models import Permission, User, get_spotify
+from pyjams.models import Permission, User
 
 router = APIRouter(prefix="/auth")
 
@@ -55,14 +55,6 @@ def playlist_permission_required(permission_key: str) -> Callable:
 
 def can_manage_featured_playlists(user: User) -> bool:
     return user.is_admin or any(pm.is_active for pm in user.managed_playlists)
-
-
-@router.get("/me")
-async def get_current_user(request: Request):
-    """Get current user info."""
-    spotify = await get_spotify(request.session)
-    user = spotify.current_user()
-    return {"user": user}
 
 
 @router.post("/logout")
