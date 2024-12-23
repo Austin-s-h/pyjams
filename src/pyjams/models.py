@@ -7,7 +7,8 @@ from pydantic import Field as PydanticField
 from pydantic_settings import BaseSettings
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, String, text
+from sqlalchemy.dialects.postgresql import TIMESTAMP
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine
 
 
@@ -20,7 +21,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = PydanticField(default_factory=lambda: os.urandom(24).hex())
     BASE_URL: str = "http://127.0.0.1:4884"
     DATABASE_URL: str = Field(
-        default="sqlite:///pyjams.db", description="Database URL (will be overridden by Heroku DATABASE_URL)"
+        default=os.getenv("DATABASE_URL", None),
+        description="Database URL (defaults to local if DATABASE_URL not set)",
     )
 
     class Config:
@@ -28,10 +30,18 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
 
     def get_database_url(self) -> str:
-        """Get database URL with SSL config for Heroku Postgres."""
-        if "postgres://" in self.DATABASE_URL:
-            return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        return self.DATABASE_URL
+        """Get database URL with proper configuration for Heroku Postgres."""
+        url = self.DATABASE_URL
+
+        # Convert potential postgres:// to postgresql://
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+
+        # Add SSL requirements for Heroku
+        if "amazonaws.com" in url or "herokuapp.com" in url:
+            return f"{url}?sslmode=require"
+
+        return url
 
 
 settings = Settings()
@@ -80,13 +90,19 @@ class User(SQLModel, table=True):
     """User model with role-based permissions."""
 
     id: int | None = Field(default=None, primary_key=True)
-    spotify_id: str | None = Field(unique=True, index=True, nullable=True)  # Nullable for guest users
-    name: str | None = None
-    email: str | None = Field(unique=True, index=True, nullable=True)
+    spotify_id: str | None = Field(sa_column=Column(String(64), unique=True, index=True, nullable=True))
+    name: str | None = Field(sa_column=Column(String(255)))
+    email: str | None = Field(sa_column=Column(String(255), unique=True, index=True, nullable=True))
     role: UserRole = Field(default=UserRole.GUEST)
     is_active: bool = Field(default=True)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_login: datetime | None = None
+    created_at: datetime = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    last_login: datetime | None = Field(sa_column=Column(TIMESTAMP(timezone=True), nullable=True))
 
     # Relationships
     featured_playlists: list["FeaturedPlaylist"] = Relationship(back_populates="creator")
@@ -123,21 +139,36 @@ class User(SQLModel, table=True):
 
 
 class FeaturedPlaylist(SQLModel, table=True):
-    """Renamed from PublicPlaylist for better clarity."""
+    """Featured playlist model."""
 
     id: int | None = Field(default=None, primary_key=True)
-    spotify_id: str = Field(unique=True, index=True)
-    name: str = Field()
-    description: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    creator_id: int = Field(foreign_key="user.id")
+    spotify_id: str = Field(sa_column=Column(String(64), unique=True, index=True))
+    name: str = Field(sa_column=Column(String(255)))
+    description: str | None = Field(sa_column=Column(String(1000), nullable=True))
+    created_at: datetime = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    creator_id: int = Field(foreign_key="user.id", index=True)
     is_active: bool = Field(default=True)
-    is_visible: bool = Field(default=True)  # For moderation
-    contribution_rules: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    is_visible: bool = Field(default=True)
+    contribution_rules: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=False, server_default="{}"),
+    )
 
-    # Relationships
-    creator: User = Relationship(back_populates="featured_playlists")
-    managers: list["PlaylistManager"] = Relationship(back_populates="playlist")
+    # Update relationships with cascade behavior
+    creator: User = Relationship(
+        back_populates="featured_playlists",
+        sa_relationship_kwargs={"cascade": "none"},
+    )
+    managers: list["PlaylistManager"] = Relationship(
+        back_populates="playlist",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
     def user_can_manage(self, user: User) -> bool:
         """Check if user can manage this playlist."""
@@ -157,9 +188,15 @@ class PlaylistManager(SQLModel, table=True):
     """Model for users who can manage a featured playlist."""
 
     id: int | None = Field(default=None, primary_key=True)
-    playlist_id: int = Field(foreign_key="featuredplaylist.id")
-    user_id: int = Field(foreign_key="user.id")
-    added_at: datetime = Field(default_factory=datetime.utcnow)
+    playlist_id: int = Field(foreign_key="featuredplaylist.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    added_at: datetime = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
     is_active: bool = Field(default=True)
     permissions: dict[str, Any] = Field(
         default_factory=lambda: {
@@ -168,41 +205,62 @@ class PlaylistManager(SQLModel, table=True):
             "can_manage_users": False,
             "can_moderate": False,
         },
-        sa_column=Column(JSON),
+        sa_column=Column(JSON, nullable=False, server_default="{}"),
     )
 
-    # Relationships
-    playlist: FeaturedPlaylist = Relationship(back_populates="managers")
-    manager: User = Relationship(back_populates="managed_playlists")
-
-    def has_permission(self, permission_key: str) -> bool:
-        """Check if manager has specific playlist permission."""
-        return bool(self.is_active and self.permissions.get(permission_key, False))
+    # Update relationships with cascade behavior
+    playlist: FeaturedPlaylist = Relationship(
+        back_populates="managers",
+        sa_relationship_kwargs={"cascade": "none"},
+    )
+    manager: User = Relationship(
+        back_populates="managed_playlists",
+        sa_relationship_kwargs={"cascade": "none"},
+    )
 
 
 class ModerationAction(SQLModel, table=True):
     """Track moderation actions on playlists."""
 
     id: int | None = Field(default=None, primary_key=True)
-    playlist_id: int = Field(foreign_key="featuredplaylist.id")
-    moderator_id: int = Field(foreign_key="user.id")
-    action_type: str  # e.g., "hide", "unhide", "warn", etc.
-    reason: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    action_metadata: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))  # Renamed from metadata
+    playlist_id: int = Field(foreign_key="featuredplaylist.id", index=True)
+    moderator_id: int = Field(foreign_key="user.id", index=True)
+    action_type: str = Field(sa_column=Column(String(32)))
+    reason: str = Field(sa_column=Column(String(1000)))
+    created_at: datetime = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
+    action_metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSON, nullable=False, server_default="{}"),
+    )
 
-    # Relationships
-    playlist: FeaturedPlaylist = Relationship()
-    moderator: User = Relationship()
+    # Update relationships with cascade behavior
+    playlist: FeaturedPlaylist = Relationship(
+        sa_relationship_kwargs={"cascade": "none"},
+    )
+    moderator: User = Relationship(
+        sa_relationship_kwargs={"cascade": "none"},
+    )
 
 
 class Admin(SQLModel, table=True):
     """Admin model for storing admin users."""
 
     id: int | None = Field(default=None, primary_key=True)
-    spotify_id: str = Field(unique=True, index=True)
-    name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    spotify_id: str = Field(sa_column=Column(String(64), unique=True, index=True))
+    name: str = Field(sa_column=Column(String(255)))
+    created_at: datetime = Field(
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=text("CURRENT_TIMESTAMP"),
+        )
+    )
     is_active: bool = Field(default=True)
 
     @property
@@ -214,8 +272,23 @@ class Admin(SQLModel, table=True):
             return session.query(User).filter(User.spotify_id == self.spotify_id).first()
 
 
-# Database setup
-engine = create_engine(settings.get_database_url())
+# Update database engine configuration for Postgres
+engine = create_engine(
+    settings.get_database_url(),
+    pool_size=5,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    pool_pre_ping=True,  # Enable connection health checks
+    connect_args={
+        "sslmode": "require"
+        if "amazonaws.com" in settings.DATABASE_URL or "herokuapp.com" in settings.DATABASE_URL
+        else "prefer"
+    },
+)
+
+# Create all tables in the database
+SQLModel.metadata.create_all(engine)
 
 
 def get_session():
