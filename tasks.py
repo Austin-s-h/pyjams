@@ -56,7 +56,7 @@ def deploy(ctx):
     verify(ctx)
     ctx.run("git add staticfiles")
     ctx.run('git commit -m "Update static files" || true')
-    ctx.run("git push heroku main")
+    ctx.run("git push heroku master")
 
 
 # @task
