@@ -168,7 +168,7 @@ async def index(request: Request):
 
     # Get public playlists and enrich with Spotify data
     session = next(get_session())
-    public_playlists = session.query(FeaturedPlaylist).filter(FeaturedPlaylist.is_active == True).all()
+    public_playlists = session.query(FeaturedPlaylist).filter(FeaturedPlaylist.is_active).all()
 
     # Get managed playlist IDs for the current user
     managed_playlist_ids = set()
@@ -176,7 +176,7 @@ async def index(request: Request):
         managed_playlist_ids = {
             manager.playlist_id
             for manager in session.query(PlaylistManager)
-            .filter(PlaylistManager.user_id == request.session["user_id"], PlaylistManager.is_active == True)
+            .filter(PlaylistManager.user_id == request.session["user_id"], PlaylistManager.is_active)
             .all()
         }
 
@@ -396,7 +396,7 @@ async def add_user_as_manager(
         .filter(
             PlaylistManager.playlist_id == playlist_id,
             PlaylistManager.user_id == current_user["id"],
-            PlaylistManager.is_active == True,
+            PlaylistManager.is_active,
         )
         .first()
     )
@@ -434,7 +434,7 @@ async def playlist_details(playlist_id: str, request: Request):
     # Get playlist managers
     playlist_managers = (
         session.query(PlaylistManager)
-        .filter(PlaylistManager.playlist_id == public_playlist.id, PlaylistManager.is_active == True)
+        .filter(PlaylistManager.playlist_id == public_playlist.id, PlaylistManager.is_active)
         .order_by(PlaylistManager.added_at.desc())
         .all()
     )
@@ -506,7 +506,7 @@ async def add_track(request: Request, track_id: str = Form(...), playlist_id: st
     session = next(get_session())
     featured_playlist = (
         session.query(FeaturedPlaylist)
-        .filter(FeaturedPlaylist.spotify_id == playlist_id, FeaturedPlaylist.is_active == True)
+        .filter(FeaturedPlaylist.spotify_id == playlist_id, PlaylistManager.is_active)
         .first()
     )
 
