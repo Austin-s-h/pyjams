@@ -19,11 +19,19 @@ class Settings(BaseSettings):
     SPOTIFY_ADMIN_USERNAME: str = PydanticField(..., description="The Spotify username (numerical) of the admin user")
     SECRET_KEY: str = PydanticField(default_factory=lambda: os.urandom(24).hex())
     BASE_URL: str = "http://127.0.0.1:4884"
-    DATABASE_URL: str = "sqlite:///pyjams.db"
+    DATABASE_URL: str = Field(
+        default="sqlite:///pyjams.db", description="Database URL (will be overridden by Heroku DATABASE_URL)"
+    )
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    def get_database_url(self) -> str:
+        """Get database URL with SSL config for Heroku Postgres."""
+        if "postgres://" in self.DATABASE_URL:
+            return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        return self.DATABASE_URL
 
 
 settings = Settings()
@@ -207,7 +215,7 @@ class Admin(SQLModel, table=True):
 
 
 # Database setup
-engine = create_engine(settings.DATABASE_URL)
+engine = create_engine(settings.get_database_url())
 
 
 def get_session():

@@ -1,0 +1,26 @@
+{
+    "name": "PyJams",
+    "description": "Collaborative Spotify Playlist Manager",
+    "repository": "https://github.com/Austin-s-h/pyjams",
+    "keywords": [
+        "python",
+        "fastapi",
+        "spotify",
+        "playlist"
+    ],
+    "addons": [
+        "heroku-postgresql:hobby-dev"
+    ],
+    "env": {
+        "SPOTIFY_CLIENT_ID": {
+            "description": "Spotify API Client ID"
+        },
+        "SPOTIFY_CLIENT_SECRET": {
+            "description": "Spotify API Client Secret"
+        },
+        "DJANGO_SECRET_KEY": {
+            "description": "The secret key for the Django application.",
+            "generator": "secret"
+        }
+    }
+}

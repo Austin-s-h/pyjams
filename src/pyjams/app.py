@@ -34,6 +34,7 @@ app = FastAPI(
     title="PyJams",
     description="A collaborative playlist manager for Spotify",
     version="1.0.0",
+    root_path=settings.BASE_URL,
 )
 
 # Static files and templates setup

@@ -31,7 +31,8 @@ A Flask web application that allows users to manage Spotify playlists collaborat
    - Streamlined deployment process
    - Hosting solution research
    - CI/CD implementation
-
+4. Moving to Heroku configuration for deployment.
+This requires moving from Sqlite to PostgreSQL
 ## Setup
 
 1. Create a Spotify Developer account and register your application at https://developer.spotify.com/dashboard
@@ -64,7 +65,6 @@ uv run src/pyjams/app.py
 uvicorn pyjams.app:app --host 127.0.0.1 --port 4884 --workers 1
 
 ## Development
-
 
 ### New Features
 
@@ -110,4 +110,3 @@ uvicorn pyjams.app:app --host 127.0.0.1 --port 4884 --workers 1
 MIT License - See LICENSE file for details
 
 ## Project Structure
-...   
