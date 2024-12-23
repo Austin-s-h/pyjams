@@ -8,7 +8,7 @@ def main():
         # Use gunicorn in production
         from gunicorn.app.wsgiapp import run
 
-        sys.argv = ["gunicorn", "pyjams.app:app", "-c", "gunicorn.conf"]
+        sys.argv = ["gunicorn", "pyjams.app:app", "-c", "gunicorn.conf.py"]
         run()
     else:
         # Use uvicorn in development

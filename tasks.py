@@ -72,7 +72,7 @@ def serve(ctx):
 @task
 def prod(ctx):
     """Run the production server using gunicorn."""
-    ctx.run("gunicorn pyjams.app:app -c gunicorn.conf")
+    ctx.run("gunicorn pyjams.app:app -c gunicorn.conf.py")
 
 
 @task
