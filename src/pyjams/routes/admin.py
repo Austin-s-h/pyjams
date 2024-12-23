@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse
 from spotipy import Spotify, SpotifyException
 
+from pyjams.app import spotify_error_handler
 from pyjams.models import FeaturedPlaylist, Permission, PlaylistManager, get_session
-from pyjams.routes.auth import require_permissions
-from pyjams.utils.decorators import require_admin, spotify_error_handler
+from pyjams.routes.auth import require_admin, require_permissions
 from pyjams.utils.templates import render_template
 
 router = APIRouter(prefix="/admin")

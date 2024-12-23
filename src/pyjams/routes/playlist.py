@@ -1,9 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from pyjams.models import FeaturedPlaylist, PlaylistManager, get_session
-from pyjams.spotify import get_playlist_info, get_spotify
-from pyjams.utils.decorators import spotify_error_handler
+from pyjams.app import spotify_error_handler
+from pyjams.models import (
+    FeaturedPlaylist,
+    PlaylistManager,
+    get_playlist_info,
+    get_session,
+    get_spotify,
+)
 from pyjams.utils.templates import render_template
 
 router = APIRouter(prefix="/playlists")

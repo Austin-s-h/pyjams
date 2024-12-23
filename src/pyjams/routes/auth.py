@@ -31,6 +31,13 @@ def require_permissions(*permissions: Permission):
     return dependency
 
 
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Require admin privileges for route."""
+    if not user.is_admin:
+        raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Admin privileges required")
+    return user
+
+
 def playlist_permission_required(permission_key: str) -> Callable:
     def decorator(func: Callable) -> Callable:
         @wraps(func)
