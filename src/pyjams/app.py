@@ -435,7 +435,7 @@ async def playlist_details(playlist_id: str, request: Request):
     playlist_managers = (
         session.query(PlaylistManager)
         .filter(PlaylistManager.playlist_id == public_playlist.id, PlaylistManager.is_active)
-        .order_by(PlaylistManager.added_at.desc())
+        .order_by(PlaylistManager.added_at)
         .all()
     )
 
@@ -534,12 +534,13 @@ async def add_track(request: Request, track_id: str = Form(...), playlist_id: st
 
 @app.post("/api/songs/remove")  # Change from /remove_song to /api/songs/remove
 @spotify_error_handler
-async def remove_track(request: Request, track_id: str = Form(...), playlist_id: str | None = Form(None)):
+async def remove_track(
+    request: Request, track_id: str = Form(...), playlist_id: str = Form(...)
+):  # Made playlist_id required
     """Remove a track from the playlist."""
     spotify = await get_spotify(request.session)
-    playlist_id = playlist_id or settings.PUBLIC_PLAYLIST_ID
     if not playlist_id:
-        raise HTTPException(status_code=400, detail="No playlist specified")
+        raise HTTPException(status_code=400, detail="Playlist ID is required")
 
     track = spotify.track(track_id)
     spotify.playlist_remove_all_occurrences_of_items(playlist_id, [track_id])

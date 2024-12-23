@@ -33,6 +33,7 @@ A Flask web application that allows users to manage Spotify playlists collaborat
    - CI/CD implementation
 4. Moving to Heroku configuration for deployment.
 This requires moving from Sqlite to PostgreSQL
+Also added tasks and other fun things
 ## Setup
 
 1. Create a Spotify Developer account and register your application at https://developer.spotify.com/dashboard
@@ -58,11 +59,11 @@ export SPOTIFY_ADMIN_USERNAME="your_spotify_username" # typically all numerical
 4. Run the development server:
 
 ```bash
-uv run src/pyjams/app.py
+invoke serve
 ```
 
 5. Run production server
-uvicorn pyjams.app:app --host 127.0.0.1 --port 4884 --workers 1
+invoke prod
 
 ## Development
 
