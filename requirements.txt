@@ -14,8 +14,6 @@ invoke==2.2.0
 itsdangerous==2.2.0
 jinja2==3.1.4
 markupsafe==3.0.2
-mypy==1.13.0
-mypy-extensions==1.0.0
 packaging==24.2
 pluggy==1.5.0
 psycopg2-binary==2.9.10
@@ -24,8 +22,6 @@ pycparser==2.22
 pydantic==2.10.4
 pydantic-core==2.27.2
 pydantic-settings==2.7.0
--e file:///home/austin/pyjams
-pytest==8.3.4
 python-dotenv==1.0.1
 python-jose==3.3.0
 python-multipart==0.0.20
