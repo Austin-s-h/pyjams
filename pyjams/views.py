@@ -216,12 +216,13 @@ def logout(request):
     return redirect('pyjams:index')
 
 def spotify_login(request):
-    """Initiate Spotify OAuth flow"""
-    if request.user.is_authenticated:
-        return redirect('pyjams:index')
-        
+    """Initiate Spotify OAuth flow"""      
     sp_oauth = get_spotify_auth(request)
     auth_url = sp_oauth.get_authorize_url()
+    
+    # Generate and store state parameter
+    state = sp_oauth.state
+    request.session['spotify_state'] = state
     
     # Store next URL in session if provided
     next_url = request.GET.get('next')
@@ -237,12 +238,17 @@ def spotify_callback(request):
         messages.error(request, f"Spotify authorization failed: {error}")
         return redirect('pyjams:index')
     
+    state = request.GET.get('state')
     code = request.GET.get('code')
+    
     if not code:
         messages.error(request, "No authorization code received")
         return redirect('pyjams:index')
         
     try:
+        # Verify state parameter
+        verify_spotify_state(request, state)
+        
         sp_oauth = get_spotify_auth(request)
         token_info = sp_oauth.get_access_token(code)
         request.session['spotify_token'] = token_info
@@ -260,6 +266,10 @@ def spotify_callback(request):
         else:
             messages.error(request, "Authentication failed")
             
+    except TokenError as e:
+        messages.error(request, str(e))
+        if e.should_logout:
+            return redirect('pyjams:logout')
     except Exception as e:
         messages.error(request, f"Authentication failed: {e!s}")
         

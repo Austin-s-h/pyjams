@@ -49,3 +49,24 @@ def get_playlist_info(spotify, playlist_id):
     playlist = spotify.playlist(playlist_id)
     tracks = spotify.playlist_tracks(playlist_id)
     return playlist, tracks
+
+def verify_spotify_state(request, state):
+    """Verify the state parameter to prevent CSRF attacks."""
+    stored_state = request.session.get('spotify_state')
+    if not stored_state or stored_state != state:
+        raise TokenError("State verification failed", should_logout=True)
+    del request.session['spotify_state']
+
+def refresh_token_if_expired(request):
+    """Refresh the Spotify token if expired."""
+    token_info = request.session.get('spotify_token')
+    if not token_info:
+        raise TokenError("No token found", should_logout=True)
+
+    sp_oauth = get_spotify_auth(request)
+    if sp_oauth.is_token_expired(token_info):
+        try:
+            token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+            request.session['spotify_token'] = token_info
+        except Exception as e:
+            raise TokenError(f"Failed to refresh token: {e}", should_logout=True)
