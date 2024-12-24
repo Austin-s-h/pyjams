@@ -28,15 +28,15 @@ bind = ["[::]:{}".format(os.environ.get("PORT", 5006))]
 # Note: When changing the number of dynos/workers/threads you will want to make sure you
 # do not exceed the maximum number of connections to external services such as DBs:
 # https://devcenter.heroku.com/articles/python-concurrency-and-database-connections
-worker_class = "uvicorn.workers.UvicornWorker"
+worker_class = "gthread"
 
 # gunicorn will start this many worker processes. The Python buildpack automatically sets a
 # default for WEB_CONCURRENCY at dyno boot, based on the number of CPUs and available RAM:
 # https://devcenter.heroku.com/articles/python-concurrency
-workers = int(os.environ.get("WEB_CONCURRENCY", "2"))
+workers = os.environ.get("WEB_CONCURRENCY", 1)
 
 # Each `gthread` worker process will use a pool of this many threads.
-threads = 1
+threads = 5
 
 # Load the app before the worker processes are forked, to reduce memory usage and boot times.
 preload_app = True
@@ -57,4 +57,7 @@ accesslog = "-"
 # Adjust which fields are included in the access log, and make it use the Heroku logfmt
 # style. The `X-Request-Id` and `X-Forwarded-For` headers are set by the Heroku Router:
 # https://devcenter.heroku.com/articles/http-routing#heroku-headers
-access_log_format = 'gunicorn method=%(m)s path="%(U)s" status=%(s)s duration=%(M)sms request_id=%({x-request-id}i)s fwd="%({x-forwarded-for}i)s" user_agent="%(a)s"'  # noqa
+access_log_format = (
+    'gunicorn method=%(m)s path="%(U)s" status=%(s)s duration=%(M)sms '
+    'request_id=%({x-request-id}i)s fwd="%({x-forwarded-for}i)s" user_agent="%(a)s"'
+)

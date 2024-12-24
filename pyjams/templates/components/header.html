@@ -1,0 +1,21 @@
+<header class="site-header">
+    <nav class="navbar">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'pyjams:index' %}">
+                PyJams
+            </a>
+            <nav class="header-nav">
+                {% if user %}
+                    <a href="{% url 'pyjams:index' %}" class="nav-link">Home</a>
+                    {% if user.is_staff %}
+                        <a href="{% url 'pyjams:admin_panel' %}" class="nav-link">Admin</a>
+                    {% endif %}
+                    <span class="user-name">{{ user.display_name }}</span>
+                    <a href="{% url 'pyjams:logout' %}" class="nav-link">Logout</a>
+                {% else %}
+                    <a href="{% url 'pyjams:spotify_login' %}" class="nav-link">Login with Spotify</a>
+                {% endif %}
+            </nav>
+        </div>
+    </nav>
+</header>

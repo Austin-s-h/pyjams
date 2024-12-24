@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ playlist.name }} - PyJams{% endblock %}
+
+{% block body_class %}playlist-page{% endblock %}
+
+{% block content %}
+<div class="playlist-view">
+    <div class="playlist-header">
+        <div class="playlist-info">
+            <h1>{{ playlist.name }}</h1>
+            <p class="playlist-description">{{ playlist.description }}</p>
+            <div class="playlist-stats">
+                {% for stat_name, stat_value in stats.items %}
+                <div class="stat-item">
+                    <span class="stat-value">{{ stat_value }}</span>
+                    <span class="stat-label">{{ stat_name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% if is_manager %}
+        <div class="playlist-actions">
+            <button class="btn btn-primary" onclick="showSearchModal()">Add Tracks</button>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tracks-list">
+        {% for track in tracks %}
+        <div class="track-row" data-track-id="{{ track.track.id }}">
+            <!-- Track information -->
+            <div class="track-info">
+                <img src="{{ track.track.album.images.0.url }}" alt="Album art" class="track-thumb">
+                <div class="track-text">
+                    <span class="track-name">{{ track.track.name }}</span>
+                    <span class="track-artist">{{ track.track.artists.0.name }}</span>
+                </div>
+            </div>
+            {% if is_manager %}
+            <div class="track-actions">
+                <button class="preview-btn" onclick="previewTrack('{{ track.track.id }}')">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button class="remove-btn" onclick="removeTrack('{{ track.track.id }}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% block modals %}
+    {% include "components/track_modal.html" %}
+    {% include "components/search_modal.html" %}
+{% endblock %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/playlist.js' %}"></script>
+{% endblock %}

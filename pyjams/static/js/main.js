@@ -187,12 +187,51 @@ class AdminPanel {
     }
 }
 
+// Modal management
+class ModalManager {
+    static show(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    static hide(modalId) {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+        
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    static init() {
+        // Initialize close buttons
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.onclick = () => {
+                const modal = btn.closest('.modal');
+                if (modal) ModalManager.hide(modal.id);
+            };
+        });
+
+        // Close on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.onclick = (e) => {
+                if (e.target === modal) ModalManager.hide(modal.id);
+            };
+        });
+    }
+}
+
 // Initialize components when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize admin panel if on admin page
     if (document.querySelector('.admin-layout')) {
         new AdminPanel();
     }
+
+    // Initialize modals
+    ModalManager.init();
 });
 
 // Initialize notification close buttons
@@ -209,5 +248,6 @@ window.PyJams = {
     showError: (message) => NotificationManager.show(message, 'error'),
     showSuccess: (message) => NotificationManager.show(message, 'success'),
     showInfo: (message) => AlertManager.show(message, 'info'),
-    AdminPanel
+    AdminPanel,
+    ModalManager
 };
