@@ -220,7 +220,7 @@ def spotify_login(request):
     if request.user.is_authenticated:
         return redirect('pyjams:index')
         
-    sp_oauth = get_spotify_auth()
+    sp_oauth = get_spotify_auth(request)
     auth_url = sp_oauth.get_authorize_url()
     
     # Store next URL in session if provided
@@ -243,7 +243,7 @@ def spotify_callback(request):
         return redirect('pyjams:index')
         
     try:
-        sp_oauth = get_spotify_auth()
+        sp_oauth = get_spotify_auth(request)
         token_info = sp_oauth.get_access_token(code)
         request.session['spotify_token'] = token_info
         

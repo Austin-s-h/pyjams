@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib import messages
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
+from django.urls import reverse
 
 
 class TokenError(Exception):
@@ -13,11 +14,25 @@ class TokenError(Exception):
         super().__init__(message)
 
 
-def get_spotify_auth():
+def get_spotify_auth(request=None):
+    """Get SpotifyOAuth instance with dynamic redirect URI.
+    
+    If request is provided, uses the request host to build the callback URL.
+    Otherwise falls back to settings.SPOTIFY_REDIRECT_URI.
+    """
+    redirect_uri = settings.SPOTIFY_REDIRECT_URI
+    
+    if request:
+        # Build callback URL using request host
+        scheme = request.scheme
+        host = request.get_host()
+        path = reverse('pyjams:spotify_callback')
+        redirect_uri = f"{scheme}://{host}{path}"
+
     return SpotifyOAuth(
         client_id=settings.SPOTIFY_CLIENT_ID,
         client_secret=settings.SPOTIFY_CLIENT_SECRET,
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
+        redirect_uri=redirect_uri,
         scope='playlist-modify-public playlist-modify-private user-read-private user-read-email'
     )
 
