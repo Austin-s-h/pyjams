@@ -11,8 +11,6 @@ from pyjams.models import FeaturedPlaylist, PlaylistManager
 from pyjams.utils.messages import error, success
 from pyjams.utils.spotify import get_playlist_info, get_spotify
 
-from .auth import get_spotify_auth
-
 
 @spotify_error_handler
 def index(request):

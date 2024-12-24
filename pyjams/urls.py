@@ -7,7 +7,7 @@ app_name = 'pyjams'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.index, name='index'),
+    path('/', views.index, name='index'),
     path('playlist/<str:playlist_id>/', views.playlist_details, name='playlist_details'),
     path('playlists/', views.get_playlists, name='get_playlists'),
     path('playlist/<str:playlist_id>/details/', views.get_playlist, name='get_playlist'),

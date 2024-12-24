@@ -234,7 +234,7 @@ SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://localhost:5006/callback')
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
-    raise ImproperlyConfigured('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
+    raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
 
 TEMPLATES = [
     {

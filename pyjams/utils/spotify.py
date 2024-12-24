@@ -11,20 +11,6 @@ class TokenError(Exception):
         super().__init__(message)
 
 
-def get_spotify_oauth():
-    """Create SpotifyOAuth object with configured settings."""
-    return SpotifyOAuth(
-        client_id=settings.SPOTIFY_CLIENT_ID,
-        client_secret=settings.SPOTIFY_CLIENT_SECRET,
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
-        scope=settings.SPOTIFY_SCOPE
-    )
-
-def get_spotify_oauth_url() -> str:
-    """Get the Spotify OAuth login URL."""
-    sp_oauth = get_spotify_oauth()
-    return sp_oauth.get_authorize_url()
-
 def get_spotify(request: dict) -> spotipy.Spotify:
     """Get an authenticated Spotify client using credentials from Django settings."""
     cache_handler = spotipy.cache_handler.DjangoSessionCacheHandler(request)
