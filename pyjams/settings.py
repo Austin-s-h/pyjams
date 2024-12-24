@@ -43,15 +43,32 @@ SECRET_KEY = os.environ.get(
 IS_HEROKU_APP = "DYNO" in os.environ and "CI" not in os.environ
 
 # SECURITY WARNING: don't run with debug turned on in production!
-if not IS_HEROKU_APP:
-    DEBUG = True
+DEBUG = not IS_HEROKU_APP
 
 # On Heroku, it's safe to use a wildcard for `ALLOWED_HOSTS``, since the Heroku router performs
 # validation of the Host header in the incoming HTTP request. On other platforms you may need to
 # list the expected hostnames explicitly in production to prevent HTTP Host header attacks. See:
 # https://docs.djangoproject.com/en/5.1/ref/settings/#std-setting-ALLOWED_HOSTS
-ALLOWED_HOSTS = ["*"] if IS_HEROKU_APP else [".localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
+ALLOWED_HOSTS = ["*"] if IS_HEROKU_APP else ["localhost", "127.0.0.1", "[::1]", "0.0.0.0", "[::]"]
 
+# Security Settings
+if IS_HEROKU_APP:
+    # HTTPS/SSL
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    # HSTS
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Cookies
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # Content Security
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Application definition
 
@@ -175,9 +192,11 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',  # Project-wide static files
-]
+# Ensure this directory exists for development
+if not IS_HEROKU_APP:
+    STATIC_DEV_DIR = BASE_DIR / 'static'
+    STATIC_DEV_DIR.mkdir(exist_ok=True)
+    STATICFILES_DIRS = [STATIC_DEV_DIR]
 
 # WhiteNoise Configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -214,6 +233,8 @@ MESSAGE_TAGS = {
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://localhost:5006/callback')
+if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
+    raise ImproperlyConfigured('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
 
 TEMPLATES = [
     {
