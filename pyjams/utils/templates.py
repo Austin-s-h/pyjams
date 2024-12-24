@@ -13,7 +13,7 @@ def get_templates_dir() -> Path:
     return Path(settings.BASE_DIR) / "pyjams" / "templates"
 
 
-def render_template(request: HttpRequest, template_name: str, context: dict[str, Any] = None) -> TemplateResponse:
+def render_template(request: HttpRequest, template_name: str, context: dict[str, Any]) -> TemplateResponse:
     """Render template with common context data."""
     context = context or {}
     

@@ -1,8 +1,9 @@
+import spotipy
 from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.models import User
 from pyjam.settings import settings
-import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+
 
 class SpotifyAuthenticationBackend(BaseBackend):
     def authenticate(self, request, access_token=None):

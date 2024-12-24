@@ -9,7 +9,7 @@ A barebones Django app, which can easily be deployed to Heroku.
 $ git clone https://github.com/heroku/python-getting-started
 $ cd python-getting-started
 $ heroku create
-$ git push heroku main
+$ git push heroku master
 $ heroku open
 ```
 

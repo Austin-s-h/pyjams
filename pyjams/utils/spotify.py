@@ -1,8 +1,7 @@
-from typing import Any
 
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 from django.conf import settings
+from spotipy.oauth2 import SpotifyOAuth
 
 
 class TokenError(Exception):

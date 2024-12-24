@@ -1,15 +1,16 @@
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, Http404
-from django.shortcuts import render, redirect
-from django.views.decorators.http import require_http_methods
-from django.template.loader import render_to_string
-from django.contrib.auth import login, authenticate
 from django.contrib import messages
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
+from django.http import Http404, JsonResponse
+from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_http_methods
 
 from pyjams.decorators import spotify_error_handler
 from pyjams.models import FeaturedPlaylist, PlaylistManager
-from pyjams.utils.spotify import get_playlist_info, get_spotify, get_spotify_oauth_url
 from pyjams.utils.messages import error, success
+from pyjams.utils.spotify import get_playlist_info, get_spotify
+
 from .auth import get_spotify_auth
 
 
@@ -94,7 +95,7 @@ def get_playlist(request, playlist_id):
         playlist = spotify.playlist(playlist_id)
         return JsonResponse(playlist)
     except Exception as e:
-        raise Http404(f"Playlist not found: {str(e)}")
+        raise Http404(f"Playlist not found: {e!s}")
 
 @spotify_error_handler
 @login_required
@@ -119,7 +120,7 @@ def create_playlist(request):
         success(request, "Playlist created successfully!")
         return JsonResponse({"playlist": playlist})
     except Exception as e:
-        error(request, f"Failed to create playlist: {str(e)}")
+        error(request, f"Failed to create playlist: {e!s}")
         return JsonResponse({"error": str(e)}, status=400)
 
 @spotify_error_handler
@@ -149,7 +150,7 @@ def add_track(request):
             "html": html
         })
     except Exception as e:
-        error(request, f"Failed to add track: {str(e)}")
+        error(request, f"Failed to add track: {e!s}")
         return JsonResponse({"error": str(e)}, status=400)
 
 @spotify_error_handler
@@ -169,7 +170,7 @@ def remove_track(request):
         success(request, "Track removed successfully!")
         return JsonResponse({"message": "Track removed successfully"})
     except Exception as e:
-        error(request, f"Failed to remove track: {str(e)}")
+        error(request, f"Failed to remove track: {e!s}")
         return JsonResponse({"error": str(e)}, status=400)
 
 @spotify_error_handler
@@ -242,6 +243,6 @@ def spotify_callback(request):
             return redirect('pyjams:index')
             
     except Exception as e:
-        messages.error(request, f"Authentication failed: {str(e)}")
+        messages.error(request, f"Authentication failed: {e!s}")
     
     return redirect('pyjams:index')

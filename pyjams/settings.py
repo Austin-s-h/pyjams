@@ -11,9 +11,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 import os
 import secrets
-from pathlib import Path
 
 import dj_database_url
+
+from pathlib import Path
+from django.contrib.messages import constants as messages
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -201,7 +203,8 @@ LOGOUT_REDIRECT_URL = '/'
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 # Message tags to match Bootstrap classes
-from django.contrib.messages import constants as messages
+
+
 MESSAGE_TAGS = {
     messages.DEBUG: 'alert-info',
     messages.INFO: 'alert-info',

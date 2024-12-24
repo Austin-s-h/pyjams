@@ -1,6 +1,7 @@
-from typing import ClassVar
 from enum import Enum, Flag, auto
+
 from django.db import models
+
 
 class Permission(Flag):
     NONE = 0

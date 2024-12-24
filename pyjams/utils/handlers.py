@@ -6,6 +6,7 @@ from spotipy.exceptions import SpotifyException
 from .messages import error
 from .spotify import TokenError
 
+
 def spotify_error_handler(view_func):
     """Handle common Spotify API errors in Django views."""
     @wraps(view_func)
