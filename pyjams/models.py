@@ -1,4 +1,5 @@
 from enum import Enum, Flag, auto
+from typing import ClassVar
 
 from django.db import models
 
@@ -120,7 +121,7 @@ class PlaylistManager(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ['playlist', 'user']
+        unique_together: ClassVar[list[str]] = ['playlist', 'user']
 
     def __str__(self):
         return f"{self.user.name} - {self.playlist.name}"  # Using name instead of username
