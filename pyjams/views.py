@@ -1,5 +1,4 @@
-from django.contrib import messages
-from django.contrib.auth import authenticate, login
+from django.contrib import auth, messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
@@ -9,7 +8,7 @@ from django.views.decorators.http import require_http_methods
 from pyjams.decorators import spotify_error_handler
 from pyjams.models import FeaturedPlaylist, PlaylistManager
 from pyjams.utils.messages import error, success
-from pyjams.utils.spotify import get_playlist_info, get_spotify
+from pyjams.utils.spotify import get_playlist_info, get_spotify, get_spotify_auth
 
 
 @spotify_error_handler
@@ -210,37 +209,58 @@ def terms(request):
 
 def logout(request):
     """Logout user and clear session."""
+    if request.user.is_authenticated:
+        auth.logout(request)
+        messages.success(request, "You have been logged out.")
     request.session.clear()
     return redirect('pyjams:index')
 
 def spotify_login(request):
     """Initiate Spotify OAuth flow"""
+    if request.user.is_authenticated:
+        return redirect('pyjams:index')
+        
     sp_oauth = get_spotify_auth()
     auth_url = sp_oauth.get_authorize_url()
+    
+    # Store next URL in session if provided
+    next_url = request.GET.get('next')
+    if next_url:
+        request.session['next'] = next_url
+        
     return redirect(auth_url)
 
 def spotify_callback(request):
     """Handle Spotify OAuth callback"""
-    sp_oauth = get_spotify_auth()
-    code = request.GET.get('code')
+    error = request.GET.get('error')
+    if error:
+        messages.error(request, f"Spotify authorization failed: {error}")
+        return redirect('pyjams:index')
     
+    code = request.GET.get('code')
     if not code:
+        messages.error(request, "No authorization code received")
         return redirect('pyjams:index')
         
     try:
+        sp_oauth = get_spotify_auth()
         token_info = sp_oauth.get_access_token(code)
-        access_token = token_info['access_token']
-        
-        # Store tokens in session
         request.session['spotify_token'] = token_info
         
-        # Authenticate and login user
-        user = authenticate(request, access_token=access_token)
+        # Authenticate with our custom backend
+        user = auth.authenticate(request, access_token=token_info['access_token'])
         if user:
-            login(request, user)
-            return redirect('pyjams:index')
+            auth.login(request, user)
+            messages.success(request, f"Welcome {user.first_name}!")
+            
+            # Redirect to next URL if stored in session
+            next_url = request.session.pop('next', None)
+            if next_url:
+                return redirect(next_url)
+        else:
+            messages.error(request, "Authentication failed")
             
     except Exception as e:
         messages.error(request, f"Authentication failed: {e!s}")
-    
+        
     return redirect('pyjams:index')
