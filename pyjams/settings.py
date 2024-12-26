@@ -244,6 +244,35 @@ MESSAGE_TAGS = {
 # Spotify Settings
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
-SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://localhost:5006/callback')
+SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback')  # Remove trailing slash
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
     raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
+
+# Session Settings
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'  # Use cache for better performance
+SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
+SESSION_COOKIE_NAME = 'pyjams_sessionid'  # Custom session cookie name
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
+SESSION_COOKIE_SECURE = IS_HEROKU_APP
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth flow
+
+# Enable signed cookie-based sessions as fallback
+SESSION_FALLBACK = True
+SESSION_COOKIE_DOMAIN = None  # Allow all subdomains
+
+# CSRF Settings
+CSRF_COOKIE_SECURE = IS_HEROKU_APP  # True in production
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5006',
+    'http://127.0.0.1:5006',
+]
+if IS_HEROKU_APP:
+    CSRF_TRUSTED_ORIGINS.extend([
+        # Add your production domains here
+        'https://*.herokuapp.com',
+        'https://*.sansterbioanalytics.com',
+    ])

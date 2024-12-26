@@ -233,24 +233,42 @@ def spotify_login(request):
 
 def spotify_callback(request):
     """Handle Spotify OAuth callback"""
-    if error := request.GET.get('error'):
-        messages.error(request, f"Spotify authorization failed: {error}", extra_tags='bg-danger text-white')
+    error = request.GET.get('error')
+    if error:
+        messages.error(request, f"Spotify authorization failed: {error}")
         return redirect('pyjams:index')
     
-    state = request.GET.get('state')
     code = request.GET.get('code')
+    state = request.GET.get('state')
+    stored_state = request.session.get('spotify_state')
+    
+    # Clear stored state immediately
+    if 'spotify_state' in request.session:
+        del request.session['spotify_state']
     
     if not code:
         messages.error(request, "No authorization code received")
         return redirect('pyjams:index')
+    
+    if not state or not stored_state or state != stored_state:
+        messages.error(request, "Invalid state parameter")
+        return redirect('pyjams:index')
         
     try:
-        # Verify state parameter
-        verify_spotify_state(request, state)
-        
         sp_oauth = get_spotify_auth(request)
-        token_info = sp_oauth.get_access_token(code)
-        request.session['spotify_token'] = token_info
+        token_info = sp_oauth.get_access_token(code, check_cache=False)
+        
+        # Store minimal token info
+        request.session['spotify_token'] = {
+            'access_token': token_info['access_token'],
+            'refresh_token': token_info['refresh_token'],
+            'expires_at': token_info['expires_at'],
+            'scope': token_info['scope']
+        }
+        request.session.modified = True
+        
+        # Force session save
+        request.session.save()
         
         # Authenticate with our custom backend
         user = auth.authenticate(request, access_token=token_info['access_token'])
@@ -265,11 +283,8 @@ def spotify_callback(request):
         else:
             messages.error(request, "Authentication failed")
             
-    except TokenError as e:
-        messages.error(request, str(e))
-        if e.should_logout:
-            return redirect('pyjams:logout')
     except Exception as e:
         messages.error(request, f"Authentication failed: {e!s}", extra_tags='bg-danger text-white')
+        return redirect('pyjams:logout')
         
     return redirect('pyjams:index')

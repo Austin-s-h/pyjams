@@ -11,15 +11,23 @@ class SpotifyTokenMiddleware:
     def __call__(self, request):
         if request.user.is_authenticated:
             token_info = request.session.get('spotify_token')
-            if token_info:
-                sp_oauth = get_spotify_auth()
-                if sp_oauth.is_token_expired(token_info):
-                    try:
+            if token_info and isinstance(token_info, dict):  # Verify token_info is valid
+                try:
+                    sp_oauth = get_spotify_auth()
+                    if token_info.get('expires_at') and sp_oauth.is_token_expired(token_info):
                         token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
-                        request.session['spotify_token'] = token_info
-                    except Exception:
-                        auth.logout(request)
-                        return redirect('pyjams:spotify_login')
+                        # Store only necessary token data
+                        request.session['spotify_token'] = {
+                            'access_token': token_info['access_token'],
+                            'refresh_token': token_info['refresh_token'],
+                            'expires_at': token_info['expires_at'],
+                            'scope': token_info['scope']
+                        }
+                        request.session.modified = True
+                except Exception:
+                    # If token refresh fails, clear session and redirect to login
+                    request.session.flush()
+                    return redirect('pyjams:spotify_login')
 
         response = self.get_response(request)
         return response
