@@ -250,7 +250,10 @@ MESSAGE_TAGS = {
 # Spotify Settings
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
-SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback/')
+if IS_HEROKU_APP:
+    SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'https://pyjams-app-9cff897c521d.herokuapp.com/callback/')
+else:
+    SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback/')
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
     raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
 
