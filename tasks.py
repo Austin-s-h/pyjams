@@ -54,8 +54,6 @@ def configure_env(ctx):
 def deploy(ctx):
     """Deploy to Heroku with static files."""
     verify(ctx)
-    ctx.run("git add staticfiles")
-    ctx.run('git commit -m "Update static files" || true')
     ctx.run("git push heroku master")
 
 
@@ -70,13 +68,7 @@ def deploy(ctx):
 @task
 def serve(ctx):
     """Run the development server."""
-    ctx.run("uvicorn pyjams.app:app --host=127.0.0.1 --port=5006 --reload")
-
-
-@task
-def prod(ctx):
-    """Run the production server using gunicorn."""
-    ctx.run("gunicorn pyjams.app:app -c gunicorn.conf.py")
+    ctx.run("heroku local")
 
 
 @task

@@ -70,6 +70,9 @@ if IS_HEROKU_APP:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
 
+# Get port from environment variable or default to 8000
+PORT = int(os.environ.get('PORT', 5006))
+
 # Application definition
 
 # Several optional Django features that are present in the default `startproject` template have

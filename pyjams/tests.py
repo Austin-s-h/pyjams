@@ -11,5 +11,5 @@ class ExampleTest(TestCase):
     def test_index_page(self):
         response = self.client.get("/")
         self.assertContains(
-            response, "PyJams Music App", status_code=200
+            response, "PyJams - Home", status_code=200
         )

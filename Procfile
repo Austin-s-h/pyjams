@@ -1,4 +1,4 @@
-web: gunicorn --config gunicorn.conf.py pyjams.wsgi
+web: gunicorn --config gunicorn.conf.py pyjams.wsgi --bind 127.0.0.1:5006
 
 # Uncomment this `release` process if you are using a database, so that Django's model
 # migrations are run as part of app deployment, using Heroku's Release Phase feature:
