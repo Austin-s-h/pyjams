@@ -1,21 +1,54 @@
-<header class="site-header">
-    <nav class="navbar">
-        <div class="container">
-            <a class="navbar-brand" href="{% url 'index' %}">
-                PyJams
-            </a>
-            <nav class="header-nav">
-                {% if user %}
-                    <a href="{% url 'index' %}" class="nav-link">Home</a>
-                    {% if user.is_staff %}
-                        <a href="{% url 'admin:index' %}" class="nav-link">Admin</a>
-                    {% endif %}
-                    <span class="user-name">{{ user.display_name }}</span>
-                    <a href="{% url 'logout' %}" class="nav-link">Logout</a>
-                {% else %}
-                    <a href="{% url 'spotify_login' %}" class="nav-link">Login with Spotify</a>
+<header class="navbar navbar-expand-lg sticky-top bg-dark-subtle">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'pyjams:index' %}">
+            <i class="fas fa-music me-2"></i>PyJams
+        </a>
+        
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto">
+                {% if user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'pyjams:get_playlists' %}">
+                        <i class="fas fa-list me-1"></i>Playlists
+                    </a>
+                </li>
                 {% endif %}
-            </nav>
+            </ul>
+            
+            <ul class="navbar-nav">
+                {% if user.is_authenticated %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-user me-1"></i>{{ user.first_name }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        {% if user.is_staff %}
+                        <li>
+                            <a class="dropdown-item" href="{% url 'admin:index' %}">
+                                <i class="fas fa-cog me-1"></i>Admin
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        {% endif %}
+                        <li>
+                            <a class="dropdown-item" href="{% url 'pyjams:logout' %}">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% else %}
+                <li class="nav-item">
+                    <a class="nav-link btn btn-spotify" href="{% url 'pyjams:spotify_login' %}">
+                        <i class="fab fa-spotify me-1"></i>Login with Spotify
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
         </div>
-    </nav>
+    </div>
 </header>

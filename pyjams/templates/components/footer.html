@@ -1,14 +1,12 @@
 {% load static %}
-<footer class="site-footer">
-    <div class="container">
-        <div class="footer-content">
-            <div class="footer-brand">
-                <img src="{% static 'images/favicon.png' %}" alt="PyJams Logo" class="footer-logo">
-                <p>&copy; 2024 PyJams. All rights reserved.</p>
-            </div>
-            <div class="footer-links">
-                <a href="{% url 'privacy' %}">Privacy Policy</a>
-                <a href="{% url 'terms' %}">Terms of Service</a>
+<footer class="footer bg-dark text-light mt-auto py-3">
+    <div class="container text-center">
+        <div class="row">
+            <div class="col">
+                <p class="mb-0">
+                    <a href="{% url 'pyjams:privacy' %}" class="text-light me-3">Privacy Policy</a>
+                    <a href="{% url 'pyjams:terms' %}" class="text-light">Terms of Service</a>
+                </p>
             </div>
         </div>
     </div>

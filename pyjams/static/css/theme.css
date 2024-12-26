@@ -1,0 +1,32 @@
+:root {
+    /* Bootstrap dark theme customization */
+    --bs-primary: #1DB954;
+    --bs-primary-rgb: 29, 185, 84;
+    --bs-body-bg: #191414;
+    --bs-body-color: #fff;
+    --bs-dark: #282828;
+}
+
+/* Spotify-specific styles */
+.btn-spotify {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: white;
+}
+
+.btn-spotify:hover {
+    background-color: #169c46;
+    border-color: #169c46;
+    color: white;
+}
+
+/* Dark theme enhancements */
+[data-bs-theme="dark"] .modal-content {
+    background-color: var(--bs-dark);
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: var(--bs-dark);
+}
+
+/* Minimal custom styles - most using Bootstrap utilities */

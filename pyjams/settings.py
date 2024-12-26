@@ -91,7 +91,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'pyjams',
+    'pyjams.apps.PyjamsConfig',  # Use the AppConfig
 ]
     # Django doesn't support serving static assets in a production-ready way, so we use the
     # excellent WhiteNoise package to do so instead. The WhiteNoise middleware must be listed

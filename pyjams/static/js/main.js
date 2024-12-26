@@ -1,66 +1,26 @@
 // Global error handling
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
-    // You could send this to your error tracking service
-});
-
-// Global notification system
-class NotificationManager {
-    static show(message, type = 'success') {
-        const notificationEl = document.getElementById('notification');
-        const messageEl = document.getElementById('notification-message');
-        
-        if (!notificationEl || !messageEl) return;
-        
-        messageEl.textContent = message;
-        notificationEl.className = `notification ${type}`;
-        notificationEl.style.display = 'flex';
-        
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            notificationEl.style.display = 'none';
-        }, 5000);
-    }
-
-    static hide() {
-        const notificationEl = document.getElementById('notification');
-        if (notificationEl) {
-            notificationEl.style.display = 'none';
-        }
-    }
-}
-
-// Alert management
-class AlertManager {
-    static show(message, type = 'info') {
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-        alertDiv.role = 'alert';
-        alertDiv.innerHTML = `
-            ${message}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        `;
-        
-        const container = document.querySelector('.flash-messages');
-        if (container) {
-            container.appendChild(alertDiv);
-            // Auto-remove after 5 seconds
-            setTimeout(() => alertDiv.remove(), 5000);
-        }
-    }
-}
-
-// Close button handler for alerts
-document.addEventListener('click', function(e) {
-    if (e.target.matches('[data-dismiss="alert"], [data-dismiss="alert"] *')) {
-        const alert = e.target.closest('.alert');
-        if (alert) {
-            alert.remove();
-        }
+    if (window.PyJams) {
+        window.PyJams.showError('An unexpected error occurred');
     }
 });
+
+// Global PyJams namespace
+window.PyJams = {
+    showToast: (message, type = 'success') => {
+        const toastEl = document.getElementById('liveToast');
+        if (!toastEl) return;
+
+        const toast = new bootstrap.Toast(toastEl);
+        toastEl.querySelector('.toast-title').textContent = type.charAt(0).toUpperCase() + type.slice(1);
+        toastEl.querySelector('.toast-body').textContent = message;
+        toastEl.className = `toast ${type === 'error' ? 'bg-danger' : 'bg-success'} text-white`;
+        toast.show();
+    },
+    showSuccess: (message) => window.PyJams.showToast(message, 'success'),
+    showError: (message) => window.PyJams.showToast(message, 'error')
+};
 
 // Admin Panel Functionality
 class AdminPanel {
@@ -74,12 +34,12 @@ class AdminPanel {
         this.currentPage = 1;
         this.filteredItems = Array.from(this.playlistCards);
 
-        this.init();
+        if (this.tableBody) {
+            this.init();
+        }
     }
 
     init() {
-        if (!this.tableBody) return; // Only initialize on admin page
-
         this.addEventListeners();
         this.updatePagination();
         this.displayCurrentPage();
@@ -160,7 +120,7 @@ class AdminPanel {
 
     setPublicPlaylist(playlistId) {
         if (!playlistId) {
-            NotificationManager.show('Invalid playlist ID', 'error');
+            window.PyJams.showError('Invalid playlist ID');
             return;
         }
 
@@ -174,80 +134,33 @@ class AdminPanel {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                NotificationManager.show(data.error, 'error');
+                window.PyJams.showError(data.error);
             } else {
-                NotificationManager.show(data.message, 'success');
+                window.PyJams.showSuccess(data.message);
                 setTimeout(() => window.location.reload(), 1500);
             }
         })
         .catch(error => {
-            NotificationManager.show('Error setting public playlist', 'error');
+            window.PyJams.showError('Error setting public playlist');
             console.error('Error:', error);
-        });
-    }
-}
-
-// Modal management
-class ModalManager {
-    static show(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-        
-        modal.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
-    }
-
-    static hide(modalId) {
-        const modal = document.getElementById(modalId);
-        if (!modal) return;
-        
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-    }
-
-    static init() {
-        // Initialize close buttons
-        document.querySelectorAll('.close-modal').forEach(btn => {
-            btn.onclick = () => {
-                const modal = btn.closest('.modal');
-                if (modal) ModalManager.hide(modal.id);
-            };
-        });
-
-        // Close on outside click
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.onclick = (e) => {
-                if (e.target === modal) ModalManager.hide(modal.id);
-            };
         });
     }
 }
 
 // Initialize components when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap components
+    document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        .forEach(el => new bootstrap.Tooltip(el));
+    
+    document.querySelectorAll('[data-bs-toggle="popover"]')
+        .forEach(el => new bootstrap.Popover(el));
+    
+    document.querySelectorAll('.dropdown-toggle')
+        .forEach(el => new bootstrap.Dropdown(el));
+
     // Initialize admin panel if on admin page
     if (document.querySelector('.admin-layout')) {
         new AdminPanel();
     }
-
-    // Initialize modals
-    ModalManager.init();
 });
-
-// Initialize notification close buttons
-document.addEventListener('click', function(e) {
-    if (e.target.matches('.notification .close-btn')) {
-        NotificationManager.hide();
-    }
-});
-
-// Export utilities for other scripts
-window.PyJams = {
-    NotificationManager,
-    AlertManager,
-    showError: (message) => NotificationManager.show(message, 'error'),
-    showSuccess: (message) => NotificationManager.show(message, 'success'),
-    showInfo: (message) => AlertManager.show(message, 'info'),
-    AdminPanel,
-    ModalManager
-};

@@ -1,32 +1,26 @@
 {% macro playlist_card(playlist, is_manager=False) %}
-<div class="card bg-dark text-light h-100 border-secondary">
-    <a href="{{ url_for('playlist_details', playlist_id=playlist.spotify_id) }}" class="text-decoration-none">
-        <img src="{{ playlist.images[0].url if playlist.images and playlist.images|length > 0 else url_for('images/default-playlist.png') }}" 
-             class="card-img-top" 
-             alt="{{ playlist.name }}">
-    </a>
-    <div class="playlist-card-content">
-        <div class="playlist-info">
-            <h3>{{ playlist.name }}</h3>
-            {% if playlist.description %}
-            <p>{{ playlist.description }}</p>
+<div class="card h-100">
+    <img src="{{ playlist.image_url|default('static/images/default-playlist.png') }}" 
+         class="card-img-top" 
+         alt="{{ playlist.name }}">
+    <div class="card-body">
+        <h5 class="card-title">{{ playlist.name }}</h5>
+        {% if playlist.description %}
+        <p class="card-text">{{ playlist.description|truncate(100) }}</p>
+        {% endif %}
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('playlist_details', playlist_id=playlist.spotify_id) }}" 
+               class="btn btn-primary">
+                <i class="fas fa-eye"></i> View
+            </a>
+            {% if is_manager %}
+            <button class="btn btn-outline-primary" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#manageModal"
+                    data-playlist-id="{{ playlist.id }}">
+                <i class="fas fa-user-plus"></i> Manage
+            </button>
             {% endif %}
-        </div>
-        <div class="card-actions">
-            <div class="btn-group w-100">
-                <a href="{{ url_for('playlist_details', playlist_id=playlist.spotify_id) }}" 
-                   class="btn btn-outline-light">
-                    <i class="fas fa-eye"></i> View
-                </a>
-                {% if is_manager %}
-                <button class="btn btn-outline-primary" 
-                        onclick="openManagerModal('{{ playlist.id }}', '{{ playlist.name }}')"
-                        data-bs-toggle="modal" 
-                        data-bs-target="#playlistManagerModal">
-                    <i class="fas fa-user-plus"></i> Manage
-                </button>
-                {% endif %}
-            </div>
         </div>
     </div>
 </div>

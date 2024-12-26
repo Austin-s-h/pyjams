@@ -233,9 +233,8 @@ def spotify_login(request):
 
 def spotify_callback(request):
     """Handle Spotify OAuth callback"""
-    error = request.GET.get('error')
-    if error:
-        messages.error(request, f"Spotify authorization failed: {error}")
+    if error := request.GET.get('error'):
+        messages.error(request, f"Spotify authorization failed: {error}", extra_tags='bg-danger text-white')
         return redirect('pyjams:index')
     
     state = request.GET.get('state')
@@ -257,7 +256,7 @@ def spotify_callback(request):
         user = auth.authenticate(request, access_token=token_info['access_token'])
         if user:
             auth.login(request, user)
-            messages.success(request, f"Welcome {user.first_name}!")
+            messages.success(request, f"Welcome {user.first_name}!", extra_tags='bg-success text-white')
             
             # Redirect to next URL if stored in session
             next_url = request.session.pop('next', None)
@@ -271,6 +270,6 @@ def spotify_callback(request):
         if e.should_logout:
             return redirect('pyjams:logout')
     except Exception as e:
-        messages.error(request, f"Authentication failed: {e!s}")
+        messages.error(request, f"Authentication failed: {e!s}", extra_tags='bg-danger text-white')
         
     return redirect('pyjams:index')

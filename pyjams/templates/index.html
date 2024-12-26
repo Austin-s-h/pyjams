@@ -20,7 +20,7 @@
                                 <div class="card-body">
                                     <h5 class="card-title">{{ playlist.name }}</h5>
                                     <p class="card-text">{{ playlist.description|truncatechars:100 }}</p>
-                                    <a href="{% url 'playlist_details' playlist.spotify_id %}" class="btn btn-primary">View Details</a>
+                                    <a href="{% url 'pyjams:playlist_details' playlist.spotify_id %}" class="btn btn-primary">View Details</a>
                                 </div>
                             </div>
                         </div>
@@ -36,7 +36,7 @@
                 {% if managed_playlists %}
                     <div class="list-group">
                         {% for playlist in managed_playlists %}
-                            <a href="{% url 'playlist_details' playlist.spotify_id %}" 
+                            <a href="{% url 'pyjams:playlist_details' playlist.spotify_id %}" 
                                class="list-group-item list-group-item-action bg-dark text-light border-secondary">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h5 class="mb-1">{{ playlist.name }}</h5>
@@ -54,7 +54,7 @@
         <div class="text-center text-light py-5">
             <h1 class="display-4">Welcome to PyJams</h1>
             <p class="lead">Collaborate on Spotify playlists with your friends.</p>
-            <a href="{% url 'spotify_login' %}" class="btn btn-success btn-lg mt-3">
+            <a href="{% url 'pyjams:spotify_login' %}" class="btn btn-success btn-lg mt-3">
                 <i class="fab fa-spotify me-2"></i>Login with Spotify
             </a>
         </div>
