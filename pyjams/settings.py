@@ -115,6 +115,9 @@ AUTHENTICATION_BACKENDS = [
     'pyjams.auth.SpotifyAuthenticationBackend',
 ]
 
+# Custom User Model
+AUTH_USER_MODEL = 'pyjams.User'
+
 ROOT_URLCONF = "pyjams.urls"
 
 TEMPLATES = [
@@ -247,32 +250,11 @@ MESSAGE_TAGS = {
 # Spotify Settings
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
-SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback').rstrip('/')  # Ensure no trailing slash
+SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback/')
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
     raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
 
 # Session Settings - Optimized for OAuth flows
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_NAME = 'pyjams_sessionid'
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
-SESSION_COOKIE_SECURE = False  # Set to True only in production with HTTPS
-SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_SAVE_EVERY_REQUEST = True
-
-# Important for OAuth
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',  # Must be early
-    # ...existing middleware...
-]
-
-# Ensure cookies work locally
-SESSION_COOKIE_DOMAIN = None
-CSRF_COOKIE_DOMAIN = None
-CSRF_COOKIE_SECURE = False  # Set to True only in production with HTTPS
-CSRF_COOKIE_SAMESITE = 'Lax'
-
 # Session Settings
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database backend for more reliable storage
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'

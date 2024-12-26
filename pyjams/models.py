@@ -1,6 +1,7 @@
 from enum import Enum, Flag, auto
 from typing import ClassVar
 
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
@@ -40,18 +41,25 @@ class UserRole(str, Enum):
             self.ADMIN: Permission.ALL,
         }[self]
 
-class User(models.Model):
-    spotify_id = models.CharField(max_length=64, unique=True, db_index=True, null=True)
-    name = models.CharField(max_length=255, null=True)
-    email = models.EmailField(unique=True, db_index=True, null=True)
+class User(AbstractUser):
+    """
+    Unified user model with minimal Spotify information
+    """
+    # Only essential Spotify fields
+    spotify_id = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
+    spotify_email = models.EmailField(null=True, blank=True)
+    spotify_display_name = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Role management
     role = models.CharField(
         max_length=20,
         choices=[(role.value, role.name) for role in UserRole],
-        default=UserRole.GUEST.value,
+        default=UserRole.USER.value,  # Changed default from GUEST to USER
     )
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_login = models.DateTimeField(null=True)
+
+    class Meta:
+        swappable = 'AUTH_USER_MODEL'
+        db_table = 'pyjams_user'
 
     def has_permission(self, permission: Permission) -> bool:
         return bool(UserRole(self.role).permissions & permission)
@@ -62,14 +70,6 @@ class User(models.Model):
             required |= permission
         return bool(UserRole(self.role).permissions & required == required)
 
-    def can_manage_playlist(self, playlist_id: int) -> bool:
-        if self.is_admin:
-            return True
-        return self.managed_playlists.filter(
-            playlist_id=playlist_id,
-            is_active=True
-        ).exists()
-
     @property
     def is_admin(self) -> bool:
         return self.role == UserRole.ADMIN.value
@@ -77,6 +77,15 @@ class User(models.Model):
     @property
     def is_moderator(self) -> bool:
         return self.role in (UserRole.MODERATOR.value, UserRole.ADMIN.value)
+
+    @property
+    def is_guest(self) -> bool:
+        return self.role == UserRole.GUEST.value
+
+    @property
+    def display_name(self) -> str:
+        """Returns spotify_display_name if available, otherwise username"""
+        return self.spotify_display_name or self.username
 
     @classmethod
     def get_by_spotify_id(cls, spotify_id: str):
@@ -115,7 +124,11 @@ class FeaturedPlaylist(models.Model):
 
 class PlaylistManager(models.Model):
     playlist = models.ForeignKey(FeaturedPlaylist, on_delete=models.CASCADE, related_name='managers_through')
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='managed_playlists')
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE,
+        related_name='managed_playlists'
+    )
     permissions = models.JSONField(default=dict)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -135,18 +148,11 @@ class PlaylistManager(models.Model):
 
 class ModerationAction(models.Model):
     playlist = models.ForeignKey(FeaturedPlaylist, on_delete=models.CASCADE)
-    moderator = models.ForeignKey(User, on_delete=models.PROTECT)
+    moderator = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT
+    )
     action_type = models.CharField(max_length=32)
     reason = models.TextField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
     action_metadata = models.JSONField(default=dict)
-
-class Admin(models.Model):
-    spotify_id = models.CharField(max_length=64, unique=True, db_index=True)
-    name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
-
-    @property
-    def user(self):
-        return User.objects.filter(spotify_id=self.spotify_id).first()

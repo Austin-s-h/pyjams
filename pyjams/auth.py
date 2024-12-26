@@ -1,25 +1,41 @@
+from datetime import UTC, datetime
+
+from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import BaseBackend
-from django.contrib.auth.models import User
 from spotipy import Spotify
 
+User = get_user_model()
 
 class SpotifyAuthenticationBackend(BaseBackend):
-    def authenticate(self, request, access_token=None):
+    def authenticate(self, request, access_token=None, refresh_token=None, expires_at=None):
         if not access_token:
             return None
             
         spotify = Spotify(auth=access_token)
         try:
             spotify_user = spotify.current_user()
+            
             user, created = User.objects.get_or_create(
-                username=spotify_user['id'],
+                spotify_id=spotify_user['id'],
                 defaults={
+                    'username': spotify_user['id'],
                     'email': spotify_user.get('email', ''),
-                    'first_name': spotify_user.get('display_name', '')
+                    'spotify_email': spotify_user.get('email', ''),
+                    'spotify_display_name': spotify_user.get('display_name', ''),
+                    'first_name': spotify_user.get('display_name', '').split()[0] if spotify_user.get('display_name') else '',
                 }
             )
+            
+            # Update tokens
+            user.access_token = access_token
+            user.refresh_token = refresh_token
+            user.token_expires_at = datetime.fromtimestamp(expires_at, tz=UTC)
+            user.save()
+            
             return user
-        except Exception:
+            
+        except Exception as e:
+            print(f"Spotify authentication error: {e}")
             return None
 
     def get_user(self, user_id):
