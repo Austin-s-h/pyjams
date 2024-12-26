@@ -205,19 +205,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'pyjams' / 'static']
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-    os.path.join(BASE_DIR, 'pyjams', 'static'),
-    # Add any other app-specific static directories here
-]
-
-# Ensure static files are properly found and collected
-STATICFILES_FINDERS = [
-    'django.contrib.staticfiles.finders.FileSystemFinder',
-    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
-]
+# Ensure this directory exists for development
+if not IS_HEROKU_APP:
+    STATIC_DEV_DIR = BASE_DIR / 'static'
+    STATIC_DEV_DIR.mkdir(exist_ok=True)
+    STATICFILES_DIRS = [STATIC_DEV_DIR]
 
 # WhiteNoise Configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
@@ -288,7 +283,6 @@ if IS_HEROKU_APP:
         'https://*.herokuapp.com',
         'https://*.sansterbioanalytics.com',
     ])
-
 # Logging Configuration
 LOGGING = {
     'version': 1,
