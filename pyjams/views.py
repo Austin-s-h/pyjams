@@ -18,28 +18,33 @@ def index(request):
     playlists = []
     managed_playlists = []
 
-    if request.user.is_authenticated:
-        spotify = get_spotify(request.session)
-        user = spotify.current_user()
-        playlists = FeaturedPlaylist.objects.filter(is_active=True)
-        
-        # Get playlists managed by current user
-        managed_playlists = [
-            p for p in playlists 
-            if PlaylistManager.objects.filter(
-                playlist=p, 
-                user_id=user['id'], 
-                is_active=True
-            ).exists()
-        ]
-
+    # Check if user is authenticated using request.user.is_authenticated
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        try:
+            spotify = get_spotify(request.session)
+            user = spotify.current_user()
+            playlists = FeaturedPlaylist.objects.filter(is_active=True)
+            
+            # Get playlists managed by current user
+            managed_playlists = [
+                p for p in playlists 
+                if PlaylistManager.objects.filter(
+                    playlist=p, 
+                    user_id=user['id'], 
+                    is_active=True
+                ).exists()
+            ]
+        except Exception as e:
+            # Log the error but don't crash
+            print(f"Error fetching Spotify data: {e}")
+            
     context = {
         "user": user,
         "playlists": playlists,
         "managed_playlists": managed_playlists,
     }
+    
     if request.headers.get('HX-Request'):
-        # Return just the content for HTMX requests
         return render(request, "components/playlist_list.html", context)
     return render(request, "index.html", context)
 
@@ -220,19 +225,23 @@ def spotify_login(request):
     sp_oauth = get_spotify_auth(request)
     auth_url = sp_oauth.get_authorize_url()
     
-    # Generate and store state parameter
+    print("Generating new state parameter") # Debug logging
     state = sp_oauth.state
-    request.session['spotify_state'] = state
+    print(f"State parameter generated: {state}") # Debug logging
     
-    # Store next URL in session if provided
-    next_url = request.GET.get('next')
-    if next_url:
-        request.session['next'] = next_url
-        
+    # Store state in session immediately
+    request.session['spotify_state'] = state
+    request.session.modified = True
+    request.session.save()
+    
+    print(f"Stored state in session: {request.session.get('spotify_state')}") # Debug logging
+    
     return redirect(auth_url)
 
 def spotify_callback(request):
     """Handle Spotify OAuth callback"""
+    print("Session contents:", dict(request.session)) # Debug logging
+    
     error = request.GET.get('error')
     if error:
         messages.error(request, f"Spotify authorization failed: {error}")
@@ -242,18 +251,26 @@ def spotify_callback(request):
     state = request.GET.get('state')
     stored_state = request.session.get('spotify_state')
     
-    # Clear stored state immediately
-    if 'spotify_state' in request.session:
-        del request.session['spotify_state']
+    # Debug logging
+    print(f"Received state: {state}")
+    print(f"Stored state: {stored_state}")
     
     if not code:
         messages.error(request, "No authorization code received")
         return redirect('pyjams:index')
     
-    if not state or not stored_state or state != stored_state:
-        messages.error(request, "Invalid state parameter")
+    if not stored_state:
+        messages.error(request, "No state found in session")
+        return redirect('pyjams:index')
+    
+    if not state:
+        messages.error(request, "No state received from Spotify")
         return redirect('pyjams:index')
         
+    if state != stored_state:
+        messages.error(request, "State mismatch - possible CSRF attack")
+        return redirect('pyjams:index')
+
     try:
         sp_oauth = get_spotify_auth(request)
         token_info = sp_oauth.get_access_token(code, check_cache=False)

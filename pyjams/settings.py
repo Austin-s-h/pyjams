@@ -104,8 +104,8 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "pyjams.middleware.SpotifyTokenMiddleware",  # Add this line
+    "django.contrib.auth.middleware.AuthenticationMiddleware",  # Ensure this is before SpotifyTokenMiddleware
+    "pyjams.middleware.SpotifyTokenMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -203,6 +203,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'pyjams' / 'static']
 
 # Ensure this directory exists for development
 if not IS_HEROKU_APP:
@@ -212,6 +213,8 @@ if not IS_HEROKU_APP:
 
 # WhiteNoise Configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MANIFEST_STRICT = False
+WHITENOISE_USE_FINDERS = True
 
 # Enable WhiteNoise's GZip and Brotli compression of static assets
 WHITENOISE_COMPRESSION_ENABLED = True
@@ -244,12 +247,34 @@ MESSAGE_TAGS = {
 # Spotify Settings
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
-SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback')  # Remove trailing slash
+SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback').rstrip('/')  # Ensure no trailing slash
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
     raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
 
+# Session Settings - Optimized for OAuth flows
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_NAME = 'pyjams_sessionid'
+SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
+SESSION_COOKIE_SECURE = False  # Set to True only in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Important for OAuth
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',  # Must be early
+    # ...existing middleware...
+]
+
+# Ensure cookies work locally
+SESSION_COOKIE_DOMAIN = None
+CSRF_COOKIE_DOMAIN = None
+CSRF_COOKIE_SECURE = False  # Set to True only in production with HTTPS
+CSRF_COOKIE_SAMESITE = 'Lax'
+
 # Session Settings
-SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'  # Use cache for better performance
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database backend for more reliable storage
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
 SESSION_COOKIE_NAME = 'pyjams_sessionid'  # Custom session cookie name
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week

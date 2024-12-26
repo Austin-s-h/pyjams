@@ -16,15 +16,16 @@ class TokenError(Exception):
 
 def get_spotify_auth(request=None):
     """Get SpotifyOAuth instance with proper settings."""
-    auth = SpotifyOAuth(
+    oauth = SpotifyOAuth(
         client_id=settings.SPOTIFY_CLIENT_ID,
         client_secret=settings.SPOTIFY_CLIENT_SECRET,
-        redirect_uri=settings.SPOTIFY_REDIRECT_URI.rstrip('/'),  # Ensure no trailing slash
+        redirect_uri=settings.SPOTIFY_REDIRECT_URI,
         scope='playlist-modify-public playlist-modify-private user-read-private user-read-email',
-        cache_path=None,  # Don't use file cache
-        show_dialog=True  # Always show auth dialog
+        cache_path=None,
+        show_dialog=True,
+        state=request.session.get('spotify_state') if request else None
     )
-    return auth
+    return oauth
 
 def get_spotify(session):
     """Get authenticated Spotify client from session data."""
