@@ -61,3 +61,11 @@ access_log_format = (
     'gunicorn method=%(m)s path="%(U)s" status=%(s)s duration=%(M)sms '
     'request_id=%({x-request-id}i)s fwd="%({x-forwarded-for}i)s" user_agent="%(a)s"'
 )
+
+# Ensure proper proxy header handling
+forwarded_allow_ips = '*'
+secure_scheme_headers = {
+    'X-FORWARDED-PROTO': 'https',
+}
+proxy_allow_ips = '*'
+proxy_protocol = True

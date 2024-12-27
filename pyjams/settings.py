@@ -53,22 +53,35 @@ ALLOWED_HOSTS = ["*"] if IS_HEROKU_APP else ["localhost", "127.0.0.1", "[::1]", 
 
 # Security Settings
 if IS_HEROKU_APP:
-    # HTTPS/SSL
+    # SSL and Security Headers
     SECURE_SSL_REDIRECT = True
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     
-    # HSTS
+    # Cookie Settings
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    
+    # HSTS Settings
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     
-    # Cookies
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
-    
-    # Content Security
+    # Additional Security Headers
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # Trusted Hosts
+    ALLOWED_HOSTS = [
+        'pyjams.sansterbioanalytics.com',
+        'pyjams-app-9cff897c521d.herokuapp.com',
+    ]
+    
+    # CSRF Trusted Origins
+    CSRF_TRUSTED_ORIGINS = [
+        'https://pyjams.sansterbioanalytics.com',
+        'https://pyjams-app-9cff897c521d.herokuapp.com',
+    ]
 
 # Get port from environment variable or default to 8000
 PORT = int(os.environ.get('PORT', 5006))
@@ -260,9 +273,9 @@ SPOTIFY_SCOPE = 'playlist-modify-public playlist-modify-private user-read-privat
 
 # Session Settings - Optimized for OAuth flows
 # Session Settings
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'  # Use database backend for more reliable storage
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
-SESSION_COOKIE_NAME = 'pyjams_sessionid'  # Custom session cookie name
+SESSION_COOKIE_NAME = 'pyjams_sessionid'
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 SESSION_COOKIE_SECURE = IS_HEROKU_APP
 SESSION_COOKIE_HTTPONLY = True
