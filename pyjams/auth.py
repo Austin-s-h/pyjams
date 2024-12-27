@@ -22,7 +22,8 @@ class SpotifyAuthenticationBackend(BaseBackend):
                     'email': spotify_user.get('email', ''),
                     'spotify_email': spotify_user.get('email', ''),
                     'spotify_display_name': spotify_user.get('display_name', ''),
-                    'first_name': spotify_user.get('display_name', '').split()[0] if spotify_user.get('display_name') else '',
+                    'first_name': (spotify_user.get('display_name', '').split()[0] 
+                                 if spotify_user.get('display_name') else ''),
                 }
             )
             

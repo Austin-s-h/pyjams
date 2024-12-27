@@ -23,22 +23,19 @@ class SpotifySessionManager:
         
     def get_token(self) -> dict[str, Any] | None:
         """Get stored token info from session."""
-        return self.session.get('spotify_token')
+        token = self.session.get('spotify_token')
+        if token and ('expires_at' not in token or token['expires_at'] is None):
+            token['expires_at'] = int(time.time()) + token.get('expires_in', 3600)
+        return token
         
     def store_token(self, token_info: dict[str, Any]) -> None:
         """Store token info in session with validation."""
         if not isinstance(token_info, dict):
             raise TokenError("Invalid token format")
             
-        required = {'access_token', 'refresh_token', 'expires_at', 'scope'}
-        if not all(k in token_info for k in required):
-            raise TokenError("Missing required token fields")
-            
-        # Ensure expires_at is an integer
-        try:
-            token_info['expires_at'] = int(float(token_info['expires_at']))
-        except (TypeError, ValueError):
-            token_info['expires_at'] = int(time.time()) + 3600
+        # Ensure expires_at is valid
+        if 'expires_at' not in token_info or token_info['expires_at'] is None:
+            token_info['expires_at'] = int(time.time()) + token_info.get('expires_in', 3600)
             
         self.session['spotify_token'] = token_info
         self.session.modified = True
@@ -82,25 +79,21 @@ def get_spotify_auth(request=None) -> SpotifyOAuth:
     )
 
 
-def get_spotify(session: SessionBase) -> Spotify:
-    """Get authenticated Spotify client from session.
-    
-    Args:
-        session: Django session instance
-        
-    Returns:
-        Spotify: Authenticated client
-        
-    Raises:
-        TokenError: If token is invalid or missing
-    """
-    manager = SpotifySessionManager(session)
-    token_info = manager.get_token()
-    
-    if not token_info:
-        raise TokenError("No valid token found", should_logout=True)
-    
-    return Spotify(auth=token_info['access_token'])
+def get_spotify(request) -> Spotify | None:
+    """Get a configured Spotify client for the current user."""
+    if not hasattr(request, 'session'):
+        raise TokenError("No session available")
+
+    session_manager = SpotifySessionManager(request.session)
+    try:
+        token_info = session_manager.get_token()
+        if not token_info:
+            raise TokenError("No token info found")
+
+        return Spotify(auth=token_info['access_token'])
+
+    except Exception as e:
+        raise TokenError(f"Spotify authentication error: {e!s}")
 
 
 def get_playlist_info(spotify: Spotify, playlist_id: str) -> tuple[dict, dict]:

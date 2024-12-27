@@ -49,6 +49,7 @@ class User(AbstractUser):
     spotify_id = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     spotify_email = models.EmailField(null=True, blank=True)
     spotify_display_name = models.CharField(max_length=255, null=True, blank=True)
+    spotify_username = models.CharField(max_length=64, null=True, blank=True, db_index=True)  # Added this field
     
     # Role management
     role = models.CharField(
