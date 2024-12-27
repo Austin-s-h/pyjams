@@ -5,13 +5,15 @@ from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
 
-from pyjams.decorators import spotify_error_handler
 from pyjams.models import FeaturedPlaylist, PlaylistManager
 from pyjams.utils.messages import error, success
-from pyjams.utils.spotify import get_playlist_info, get_spotify, get_spotify_auth
+from pyjams.utils.spotify import (
+    get_playlist_info, get_spotify, handle_spotify_callback,
+    initiate_spotify_auth, SpotifySessionManager
+)
 
 
-@spotify_error_handler
+@require_http_methods(["GET"])
 def index(request):
     """Render index page with login or search interface."""
     playlists = []
@@ -43,8 +45,9 @@ def index(request):
         return render(request, "components/playlist_list.html", context)
     return render(request, "index.html", context)
 
-@spotify_error_handler
+
 @login_required
+@require_http_methods(["GET"])
 def playlist_details(request, playlist_id):
     spotify = get_spotify(request.session)
     current_user = spotify.current_user()
@@ -75,16 +78,31 @@ def playlist_details(request, playlist_id):
         },
     )
 
-@spotify_error_handler
-@login_required
-def get_playlists(request):
-    """Get all playlists for the authenticated user."""
-    spotify = get_spotify(request.session)
-    playlists = spotify.current_user_playlists()
-    return JsonResponse({"playlists": playlists["items"]})
 
-@spotify_error_handler
+@login_required
+@require_http_methods(["GET"])
+def get_playlists(request):
+    """View to display user's playlists."""
+    try:
+        manager = SpotifySessionManager(request.session)
+        token = manager.get_token()
+        
+        if not token:
+            return redirect('pyjams:spotify_login')
+            
+        spotify = get_spotify(request.session)
+        playlists = spotify.current_user_playlists()
+        
+        return render(request, 'playlists.html', {
+            'playlists': playlists['items']
+        })
+    except Exception as e:
+        messages.error(request, f"Error fetching playlists: {e!s}")
+        return redirect('pyjams:index')
+
+
 @login_required 
+@require_http_methods(["GET"])
 def get_playlist(request, playlist_id):
     """Get a specific playlist by ID."""
     try:
@@ -94,7 +112,7 @@ def get_playlist(request, playlist_id):
     except Exception as e:
         raise Http404(f"Playlist not found: {e!s}")
 
-@spotify_error_handler
+
 @login_required
 @require_http_methods(["POST"])
 def create_playlist(request):
@@ -120,7 +138,6 @@ def create_playlist(request):
         error(request, f"Failed to create playlist: {e!s}")
         return JsonResponse({"error": str(e)}, status=400)
 
-@spotify_error_handler
 @login_required
 @require_http_methods(["POST"])
 def add_track(request):
@@ -150,7 +167,6 @@ def add_track(request):
         error(request, f"Failed to add track: {e!s}")
         return JsonResponse({"error": str(e)}, status=400)
 
-@spotify_error_handler
 @login_required
 @require_http_methods(["POST"])
 def remove_track(request):
@@ -170,7 +186,7 @@ def remove_track(request):
         error(request, f"Failed to remove track: {e!s}")
         return JsonResponse({"error": str(e)}, status=400)
 
-@spotify_error_handler
+@login_required
 @require_http_methods(["GET"])
 def search_tracks(request):
     q = request.GET.get('q', '')
@@ -199,14 +215,17 @@ def search_tracks(request):
         return render(request, "components/search_results.html", {"tracks": tracks})
     return JsonResponse({"tracks": tracks})
 
+@require_http_methods(["GET"])
 def privacy(request):
     """Render privacy policy page."""
     return render(request, "privacy.html")
 
+@require_http_methods(["GET"])
 def terms(request):
     """Render terms of service page."""
     return render(request, "terms.html")
 
+@require_http_methods(["GET", "POST"])
 def logout(request):
     """Logout user and clear session."""
     if request.user.is_authenticated:
@@ -215,88 +234,26 @@ def logout(request):
     request.session.clear()
     return redirect('pyjams:index')
 
+@require_http_methods(["GET"])
 def spotify_login(request):
-    """Initiate Spotify OAuth flow"""      
-    sp_oauth = get_spotify_auth(request)
-    auth_url = sp_oauth.get_authorize_url()
-    
-    print("Generating new state parameter") # Debug logging
-    state = sp_oauth.state
-    print(f"State parameter generated: {state}") # Debug logging
-    
-    # Store state in session immediately
-    request.session['spotify_state'] = state
-    request.session.modified = True
-    request.session.save()
-    
-    print(f"Stored state in session: {request.session.get('spotify_state')}") # Debug logging
-    
+    """Initiate Spotify OAuth flow."""
+    auth_url = initiate_spotify_auth(request)
     return redirect(auth_url)
 
+@require_http_methods(["GET"])
 def spotify_callback(request):
-    """Handle Spotify OAuth callback"""
-    print("Session contents:", dict(request.session)) # Debug logging
-    
-    error = request.GET.get('error')
-    if error:
-        messages.error(request, f"Spotify authorization failed: {error}")
-        return redirect('pyjams:index')
-    
+    """Handle Spotify OAuth callback."""
     code = request.GET.get('code')
     state = request.GET.get('state')
-    stored_state = request.session.get('spotify_state')
-    
-    # Debug logging
-    print(f"Received state: {state}")
-    print(f"Stored state: {stored_state}")
     
     if not code:
-        messages.error(request, "No authorization code received")
-        return redirect('pyjams:index')
-    
-    if not stored_state:
-        messages.error(request, "No state found in session")
-        return redirect('pyjams:index')
-    
-    if not state:
-        messages.error(request, "No state received from Spotify")
+        messages.error(request, "Authorization failed: No code received")
         return redirect('pyjams:index')
         
-    if state != stored_state:
-        messages.error(request, "State mismatch - possible CSRF attack")
-        return redirect('pyjams:index')
-
-    try:
-        sp_oauth = get_spotify_auth(request)
-        token_info = sp_oauth.get_access_token(code, check_cache=False)
-        
-        # Store minimal token info
-        request.session['spotify_token'] = {
-            'access_token': token_info['access_token'],
-            'refresh_token': token_info['refresh_token'],
-            'expires_at': token_info['expires_at'],
-            'scope': token_info['scope']
-        }
-        request.session.modified = True
-        
-        # Force session save
-        request.session.save()
-        
-        # Authenticate with our custom backend
-        user = auth.authenticate(request, access_token=token_info['access_token'])
-        if user:
-            auth.login(request, user)
-            messages.success(request, f"Welcome {user.first_name}!", extra_tags='bg-success text-white')
-            
-            # Redirect to next URL if stored in session
-            next_url = request.session.pop('next', None)
-            if next_url:
-                return redirect(next_url)
-        else:
-            messages.error(request, "Authentication failed")
-            
-    except Exception as e:
-        messages.error(request, f"Authentication failed: {e!s}", extra_tags='bg-danger text-white')
-        return redirect('pyjams:logout')
+    success, message = handle_spotify_callback(request, code, state)
+    if success:
+        messages.success(request, message)
+    else:
+        messages.error(request, f"Authentication failed: {message}")
         
     return redirect('pyjams:index')

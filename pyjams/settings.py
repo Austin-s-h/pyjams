@@ -104,8 +104,8 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",  # Ensure this is before SpotifyTokenMiddleware
-    "pyjams.middleware.SpotifyTokenMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "pyjams.middleware.SpotifySessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -256,6 +256,7 @@ else:
     SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback/')
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
     raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
+SPOTIFY_SCOPE = 'playlist-modify-public playlist-modify-private user-read-private user-read-email'
 
 # Session Settings - Optimized for OAuth flows
 # Session Settings

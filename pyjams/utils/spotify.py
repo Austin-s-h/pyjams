@@ -1,10 +1,15 @@
 import time
+from datetime import UTC, datetime
 from typing import Any
 
+import spotipy
 from django.conf import settings
 from django.contrib.sessions.backends.base import SessionBase
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.contrib.auth import authenticate, login
 
 
 class TokenError(Exception):
@@ -39,6 +44,12 @@ class SpotifySessionManager:
             
         self.session['spotify_token'] = token_info
         self.session.modified = True
+        
+    def is_token_expired(self, token_info: dict[str, Any]) -> bool:
+        """Check if token is expired."""
+        if 'expires_at' not in token_info:
+            return False
+        return datetime.fromtimestamp(token_info['expires_at'], UTC) <= datetime.now(UTC)
 
 
 def get_spotify_auth(request=None) -> SpotifyOAuth:
@@ -79,21 +90,29 @@ def get_spotify_auth(request=None) -> SpotifyOAuth:
     )
 
 
-def get_spotify(request) -> Spotify | None:
-    """Get a configured Spotify client for the current user."""
-    if not hasattr(request, 'session'):
-        raise TokenError("No session available")
-
-    session_manager = SpotifySessionManager(request.session)
+def get_spotify(session) -> spotipy.Spotify:
+    """Get a configured Spotify client using session tokens."""
     try:
-        token_info = session_manager.get_token()
+        if not session:
+            raise TokenError("No session available", should_logout=True)
+        
+        manager = SpotifySessionManager(session)
+        token_info = manager.get_token()
+        
         if not token_info:
-            raise TokenError("No token info found")
-
-        return Spotify(auth=token_info['access_token'])
-
+            raise TokenError("No Spotify tokens in session", should_logout=True)
+        
+        # Check if token is expired
+        if manager.is_token_expired(token_info):
+            # Refresh token
+            spotify_oauth = get_spotify_auth()
+            token_info = spotify_oauth.refresh_access_token(token_info['refresh_token'])
+            manager.store_token(token_info)
+        
+        return spotipy.Spotify(auth=token_info['access_token'])
+        
     except Exception as e:
-        raise TokenError(f"Spotify authentication error: {e!s}")
+        raise TokenError(f"Failed to initialize Spotify client: {str(e)}", should_logout=True)
 
 
 def get_playlist_info(spotify: Spotify, playlist_id: str) -> tuple[dict, dict]:
@@ -111,14 +130,6 @@ def get_playlist_info(spotify: Spotify, playlist_id: str) -> tuple[dict, dict]:
     return playlist, tracks
 
 
-def verify_spotify_state(request, state):
-    """Verify the state parameter to prevent CSRF attacks."""
-    stored_state = request.session.get('spotify_state')
-    if not stored_state or stored_state != state:
-        raise TokenError("State verification failed", should_logout=True)
-    del request.session['spotify_state']
-
-
 def refresh_token_if_expired(request) -> None:
     """Refresh the Spotify token if expired.
     
@@ -128,16 +139,102 @@ def refresh_token_if_expired(request) -> None:
     Raises:
         TokenError: If refresh fails
     """
-    manager = SpotifySessionManager(request.session)
-    token_info = manager.get_token()
-    
-    if not token_info:
-        raise TokenError("No token found", should_logout=True)
+    try:
+        manager = SpotifySessionManager(request.session)
+        token_info = manager.get_token()
+        
+        if not token_info:
+            raise TokenError("No token found", should_logout=True)
 
+        sp_oauth = get_spotify_auth(request)
+        
+        if manager.is_token_expired(token_info):
+            try:
+                token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+                manager.store_token(token_info)
+            except Exception as e:
+                # Clear corrupted session data
+                request.session.flush()
+                raise TokenError(f"Failed to refresh token: {e}", should_logout=True)
+                
+    except Exception as e:
+        request.session.flush()
+        raise TokenError(f"Token refresh error: {str(e)}", should_logout=True)
+
+
+def initiate_spotify_auth(request) -> str:
+    """Start Spotify OAuth flow.
+    
+    Args:
+        request: Django request object
+        
+    Returns:
+        str: Authorization URL to redirect to
+    """
     sp_oauth = get_spotify_auth(request)
-    if sp_oauth.is_token_expired(token_info):
-        try:
-            token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
-            manager.store_token(token_info)
-        except Exception as e:
-            raise TokenError(f"Failed to refresh token: {e}", should_logout=True)
+    auth_url = sp_oauth.get_authorize_url()
+    
+    # Store state in session
+    state = sp_oauth.state
+    request.session['spotify_state'] = state
+    request.session.modified = True
+    
+    return auth_url
+
+def handle_spotify_callback(request, code: str, state: str) -> tuple[bool, str]:
+    """Process Spotify OAuth callback and authenticate user.
+    
+    Args:
+        request: Django request object
+        code: Authorization code from Spotify
+        state: State parameter for CSRF verification
+        
+    Returns:
+        tuple[bool, str]: Success status and message
+    """
+    try:
+        # Verify state
+        verify_spotify_state(request, state)
+        
+        # Get token
+        sp_oauth = get_spotify_auth(request)
+        token_info = sp_oauth.get_access_token(code, check_cache=False)
+        
+        # Store token in session
+        manager = SpotifySessionManager(request.session)
+        manager.store_token(token_info)
+        
+        # Authenticate user
+        user = authenticate(
+            request,
+            access_token=token_info['access_token'],
+            refresh_token=token_info['refresh_token'],
+            expires_in=token_info['expires_in']
+        )
+        
+        if not user:
+            return False, "Authentication failed"
+            
+        login(request, user)
+        return True, f"Welcome {user.spotify_display_name}!"
+        
+    except Exception as e:
+        return False, str(e)
+
+def verify_spotify_state(request, state: str) -> None:
+    """Verify the state parameter from Spotify OAuth callback.
+    
+    Args:
+        request: Django request object
+        state: State parameter from callback
+        
+    Raises:
+        TokenError: If state verification fails
+    """
+    stored_state = request.session.get('spotify_state')
+    if not state or not stored_state or state != stored_state:
+        raise TokenError("State verification failed", should_logout=True)
+    
+    # Clear state after verification    del request.session['spotify_state']    request.session.modified = Truedef verify_spotify_state(request, state: str) -> None:    """Verify the state parameter from Spotify OAuth callback.        Args:        request: Django request object        state: State parameter from callback            Raises:        TokenError: If state verification fails    """    stored_state = request.session.get('spotify_state')    if not state or not stored_state or state != stored_state:        raise TokenError("State verification failed", should_logout=True)        # Clear state after verification
+    del request.session['spotify_state']
+    request.session.modified = True
