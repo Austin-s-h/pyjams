@@ -75,14 +75,15 @@ if IS_HEROKU_APP:
     ALLOWED_HOSTS = [
         'pyjams.sansterbioanalytics.com',
         'pyjams-app-9cff897c521d.herokuapp.com',
+        'www.sansterbioanalytics.com',  # Allow www version for redirect
     ]
     
     # CSRF Trusted Origins
     CSRF_TRUSTED_ORIGINS = [
         'https://pyjams.sansterbioanalytics.com',
         'https://pyjams-app-9cff897c521d.herokuapp.com',
+        'https://www.sansterbioanalytics.com',
     ]
-
 # Get port from environment variable or default to 8000
 PORT = int(os.environ.get('PORT', 5006))
 

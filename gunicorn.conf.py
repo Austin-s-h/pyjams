@@ -66,6 +66,8 @@ access_log_format = (
 forwarded_allow_ips = '*'
 secure_scheme_headers = {
     'X-FORWARDED-PROTO': 'https',
+    'X-FORWARDED-SSL': 'on',
+    'X-FORWARDED-HOST': 'pyjams.sansterbioanalytics.com'
 }
 proxy_allow_ips = '*'
 proxy_protocol = True
