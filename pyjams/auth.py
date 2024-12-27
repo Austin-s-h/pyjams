@@ -26,11 +26,6 @@ class SpotifyAuthenticationBackend(BaseBackend):
                                  if spotify_user.get('display_name') else ''),
                 }
             )
-            
-            # Update tokens
-            user.access_token = access_token
-            user.refresh_token = refresh_token
-            user.token_expires_at = datetime.fromtimestamp(expires_at, tz=UTC)
             user.save()
             
             return user
