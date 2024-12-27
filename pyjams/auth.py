@@ -7,7 +7,7 @@ from spotipy import Spotify
 User = get_user_model()
 
 class SpotifyAuthenticationBackend(BaseBackend):
-    def authenticate(self, request, access_token=None, refresh_token=None, expires_at=None):
+    def authenticate(self, request, access_token=None, **kwargs):
         if not access_token:
             return None
             
@@ -26,8 +26,6 @@ class SpotifyAuthenticationBackend(BaseBackend):
                                  if spotify_user.get('display_name') else ''),
                 }
             )
-            user.save()
-            
             return user
             
         except Exception as e:

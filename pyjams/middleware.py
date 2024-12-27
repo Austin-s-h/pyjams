@@ -11,30 +11,29 @@ class SpotifyTokenMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.user.is_authenticated:
+        if request.user.is_authenticated and 'spotify_token' in request.session:
             try:
                 # Check if token needs refresh
-                if request.user.token_expires_at:
-                    now = datetime.now(UTC)
-                    if now >= request.user.token_expires_at:
-                        sp_oauth = get_spotify_auth(request)
-                        token_info = sp_oauth.refresh_access_token(request.user.refresh_token)
-                        
-                        # Update user tokens
-                        request.user.access_token = token_info['access_token']
-                        request.user.refresh_token = token_info['refresh_token']
-                        request.user.token_expires_at = datetime.fromtimestamp(
-                            token_info['expires_at'], 
-                            tz=UTC
-                        )
-                        request.user.save()
-                        
-                        # Update session
-                        request.session['spotify_token'] = token_info
-                        request.session.modified = True
-                        
+                token_info = request.session['spotify_token']
+                now = datetime.now(UTC)
+                expires_at = datetime.fromtimestamp(token_info['expires_at'], tz=UTC)
+                
+                if now >= expires_at:
+                    sp_oauth = get_spotify_auth(request)
+                    new_token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+                    
+                    # Update session with new token info
+                    request.session['spotify_token'] = {
+                        'access_token': new_token_info['access_token'],
+                        'refresh_token': new_token_info['refresh_token'],
+                        'expires_at': new_token_info['expires_at'],
+                        'scope': new_token_info['scope']
+                    }
+                    request.session.modified = True
+                    
             except Exception as e:
                 print(f"Token refresh error: {e}")
+                request.session.pop('spotify_token', None)
                 logout(request)
                 return redirect('pyjams:index')
 

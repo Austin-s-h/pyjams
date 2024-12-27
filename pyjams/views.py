@@ -14,15 +14,12 @@ from pyjams.utils.spotify import get_playlist_info, get_spotify, get_spotify_aut
 @spotify_error_handler
 def index(request):
     """Render index page with login or search interface."""
-    user = None
     playlists = []
     managed_playlists = []
 
-    # Check if user is authenticated using request.user.is_authenticated
-    if hasattr(request, 'user') and request.user.is_authenticated:
+    if request.user.is_authenticated:
         try:
             spotify = get_spotify(request.session)
-            user = spotify.current_user()
             playlists = FeaturedPlaylist.objects.filter(is_active=True)
             
             # Get playlists managed by current user
@@ -30,16 +27,14 @@ def index(request):
                 p for p in playlists 
                 if PlaylistManager.objects.filter(
                     playlist=p, 
-                    user_id=user['id'], 
+                    user_id=request.user.spotify_id, 
                     is_active=True
                 ).exists()
             ]
         except Exception as e:
-            # Log the error but don't crash
             print(f"Error fetching Spotify data: {e}")
             
     context = {
-        "user": user,
         "playlists": playlists,
         "managed_playlists": managed_playlists,
     }

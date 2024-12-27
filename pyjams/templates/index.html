@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="container py-4">
-    {% if user %}
+    {% if request.user.is_authenticated %}
         <div class="row">
             <div class="col-md-8">
                 <h2 class="text-light mb-4">Featured Playlists</h2>
