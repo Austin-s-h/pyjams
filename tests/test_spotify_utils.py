@@ -78,7 +78,8 @@ class TestSpotifySessionManager:
 
     def test_get_token_with_no_token(self, mock_session: SessionBase) -> None:
         manager = SpotifySessionManager(mock_session)
-        assert manager.get_token() is None
+        with pytest.raises(TokenError, match="Invalid token format in session"):
+            manager.get_token()
 
     def test_store_token_requires_access_token(self, mock_session: SessionBase) -> None:
         manager = SpotifySessionManager(mock_session)
