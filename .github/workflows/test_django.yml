@@ -15,17 +15,19 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.13'
-    - name: Cache Python dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+        cache: 'pip'
+        cache-dependency-path: requirements.txt
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+    - name: Upload virtualenv
+      uses: actions/upload-artifact@v3
+      with:
+        name: venv
+        path: |
+          .venv
+          ~/.cache/pip
 
   test:
     needs: setup
@@ -53,18 +55,22 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: '3.13'
-    - name: Restore cached dependencies
-      uses: actions/cache@v3
+    - name: Download virtualenv
+      uses: actions/download-artifact@v3
       with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        name: venv
+        path: |
+          .venv
+          ~/.cache/pip
     
     - name: Run Tests
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
         SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+        PYTHONPATH: ${{ github.workspace }}
       run: |
+        source .venv/bin/activate
         case ${{ matrix.test-type }} in
           lint)
             invoke lint
