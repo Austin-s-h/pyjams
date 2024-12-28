@@ -6,26 +6,22 @@ on:
   pull_request:
     branches: [ "master" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ matrix.test-type }}
+  cancel-in-progress: true
+
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Install uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: true
-        cache-dependency-glob: "requirements**.txt" # Heroku requires export of requirements.txt
-    - name: Install python and dependencies
-      run: uv python install
-    - name: Install the project
-      run: uv sync --all-extras
   test:
-    needs: setup
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         test-type: ['lint', 'pytest', 'django']
+        include:
+          - test-type: pytest
+            needs-db: true
+          - test-type: django
+            needs-db: true
     services:
       postgres:
         image: postgres:latest
@@ -39,22 +35,27 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     steps:
-    - name: Run Tests
+    - uses: actions/checkout@v4
+    - uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: "requirements**.txt"
+    
+    - run: |
+        uv install python
+        uv sync --all-extras
+    
+    - name: Run ${{ matrix.test-type }}
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        DATABASE_URL: ${{ matrix.needs-db && 'postgresql://postgres:postgres@localhost:5432/test_db' || '' }}
         SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
         SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
       run: |
         case ${{ matrix.test-type }} in
-          lint)
-            uv run invoke lint
-            ;;
-          pytest)
-            uv run invoke tests
-            ;;
-          django)
-            uv run python manage.py test
-            ;;
+          lint) uv run invoke lint ;;
+          pytest) uv run invoke test ;;
+          django) uv run python manage.py test ;;
         esac
 
