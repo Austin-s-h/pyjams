@@ -28,9 +28,13 @@ app_patterns = [
                     path("logout/", views.logout, name="logout"),
                     path("spotify/login/", views.spotify_login, name="spotify_login"),
                     path("callback/", views.spotify_callback, name="spotify_callback"),
-                    path('manage/spotify/', views.manage_spotify, name='manage_spotify'),
-                    path('manage/spotify/feature/<str:playlist_id>/', views.feature_playlist, name='feature_playlist'),
-                    path('manage/spotify/unfeature/<int:playlist_id>/', views.unfeature_playlist, name='unfeature_playlist'),
+                    path("manage/spotify/", views.manage_spotify, name="manage_spotify"),
+                    path("manage/spotify/feature/<str:playlist_id>/", views.feature_playlist, name="feature_playlist"),
+                    path(
+                        "manage/spotify/unfeature/<int:playlist_id>/",
+                        views.unfeature_playlist,
+                        name="unfeature_playlist",
+                    ),
                 ],
                 "pyjams",
             )

@@ -261,26 +261,28 @@ def manage_spotify(request: HttpRequest) -> HttpResponse:
     """View for managing Spotify playlists."""
     try:
         spotify = get_spotify(request.session)
-        
+
         # Get current user's playlists
         playlists = spotify.current_user_playlists()
-        
+
         # Get currently featured playlist
         featured = FeaturedPlaylist.objects.filter(is_active=True).first()
-        
+
         # Filter out already featured playlist from available ones
-        available_playlists = [
-            p for p in playlists['items']
-            if not (featured and p['id'] == featured.spotify_id)
-        ]
-        
-        return render(request, 'manage_spotify.html', {
-            'featured_playlist': featured,
-            'available_playlists': available_playlists,
-        })
+        available_playlists = [p for p in playlists["items"] if not (featured and p["id"] == featured.spotify_id)]
+
+        return render(
+            request,
+            "manage_spotify.html",
+            {
+                "featured_playlist": featured,
+                "available_playlists": available_playlists,
+            },
+        )
     except Exception as e:
-        error(request, f"Error accessing Spotify: {str(e)}")
-        return redirect('pyjams:index')
+        error(request, f"Error accessing Spotify: {e!s}")
+        return redirect("pyjams:index")
+
 
 @user_passes_test(lambda u: u.is_staff)
 @require_http_methods(["POST"])
@@ -288,29 +290,27 @@ def feature_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
     """Set a playlist as featured."""
     try:
         # Deactivate current featured playlist
-        FeaturedPlaylist.objects.filter(is_active=True).update(
-            is_active=False,
-            unfeatured_date=timezone.now()
-        )
-        
+        FeaturedPlaylist.objects.filter(is_active=True).update(is_active=False, unfeatured_date=timezone.now())
+
         # Create new featured playlist
         spotify = get_spotify(request.session)
         playlist = spotify.playlist(playlist_id)
-        
+
         FeaturedPlaylist.objects.create(
             spotify_id=playlist_id,
-            name=playlist['name'],
-            description=playlist.get('description', ''),
-            image_url=playlist['images'][0]['url'] if playlist['images'] else None,
+            name=playlist["name"],
+            description=playlist.get("description", ""),
+            image_url=playlist["images"][0]["url"] if playlist["images"] else None,
             featured_date=timezone.now(),
-            is_active=True
+            is_active=True,
         )
-        
+
         success(request, f"'{playlist['name']}' is now featured!")
     except Exception as e:
-        error(request, f"Failed to feature playlist: {str(e)}")
-    
-    return redirect('pyjams:manage_spotify')
+        error(request, f"Failed to feature playlist: {e!s}")
+
+    return redirect("pyjams:manage_spotify")
+
 
 @user_passes_test(lambda u: u.is_staff)
 @require_http_methods(["POST"])
@@ -321,11 +321,11 @@ def unfeature_playlist(request: HttpRequest, playlist_id: int) -> HttpResponse:
         playlist.is_active = False
         playlist.unfeatured_date = timezone.now()
         playlist.save()
-        
+
         success(request, f"'{playlist.name}' has been removed from featured.")
     except FeaturedPlaylist.DoesNotExist:
         error(request, "Playlist not found or already unfeatured.")
     except Exception as e:
-        error(request, f"Error unfeaturing playlist: {str(e)}")
-    
-    return redirect('pyjams:manage_spotify')
+        error(request, f"Error unfeaturing playlist: {e!s}")
+
+    return redirect("pyjams:manage_spotify")
