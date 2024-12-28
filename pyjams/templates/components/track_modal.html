@@ -1,22 +1,28 @@
-<div id="track-modal" class="modal" style="display: none;">
+<div id="track-modal" class="modal bg-elevated" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 id="modal-title">Manage Track</h3>
-            <button class="close-modal">&times;</button>
+            <h3 id="modal-title" class="text-primary">Manage Track</h3>
+            <button class="close-modal btn">&times;</button>
         </div>
         <div class="modal-body">
             <div class="track-info">
-                <img id="track-image" src="" alt="Album Art" class="track-image">
+                <img id="track-image" src="" alt="Album Art" class="track-image rounded">
                 <div class="track-details">
-                    <h4 id="track-name"></h4>
-                    <p id="track-artist"></p>
-                    <p id="track-album"></p>
+                    <h4 id="track-name" class="text-primary"></h4>
+                    <p id="track-artist" class="text-secondary"></p>
+                    <p id="track-album" class="text-secondary"></p>
                 </div>
             </div>
             <div class="track-actions">
-                <button id="preview-track" class="btn btn-secondary">Preview</button>
-                <button id="add-track" class="btn btn-primary">Add to Playlist</button>
-                <button id="remove-track" class="btn btn-danger">Remove from Playlist</button>
+                <button id="preview-track" class="btn btn-secondary">
+                    <i class="fas fa-play me-2"></i>Preview
+                </button>
+                <button id="add-track" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add to Playlist
+                </button>
+                <button id="remove-track" class="btn btn-danger">
+                    <i class="fas fa-trash me-2"></i>Remove
+                </button>
             </div>
         </div>
     </div>

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}PyJams - Manage Spotify{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/styles.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="manage-spotify-container">
+    <div class="manage-spotify-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Manage Spotify Playlists</h1>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+                <i class="fas fa-plus"></i> Feature New Playlist
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Featured Playlist Section -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Currently Featured</h5>
+                </div>
+                <div class="card-body">
+                    {% if featured_playlist %}
+                        <div class="featured-playlist-card">
+                            <img src="{{ featured_playlist.image_url }}" alt="{{ featured_playlist.name }}" class="img-fluid mb-2">
+                            <h6>{{ featured_playlist.name }}</h6>
+                            <p class="text-muted small">Featured since: {{ featured_playlist.featured_date|date }}</p>
+                            <button class="btn btn-outline-danger btn-sm w-100" 
+                                    hx-post="{% url 'pyjams:unfeature_playlist' featured_playlist.id %}"
+                                    hx-confirm="Remove this playlist from featured?">
+                                Remove from Featured
+                            </button>
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center">No playlist currently featured</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Playlists Section -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Available Playlists</h5>
+                        <input type="text" 
+                               class="form-control form-control-sm w-auto" 
+                               placeholder="Filter playlists..."
+                               id="playlistFilter">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="playlist-grid" id="playlistGrid">
+                        {% for playlist in available_playlists %}
+                            <div class="playlist-item" data-playlist-name="{{ playlist.name|lower }}">
+                                <img src="{{ playlist.images.0.url }}" alt="{{ playlist.name }}">
+                                <div class="playlist-info">
+                                    <h6>{{ playlist.name }}</h6>
+                                    <p class="text-muted small">{{ playlist.tracks.total }} tracks</p>
+                                    <button class="btn btn-primary btn-sm w-100"
+                                            hx-post="{% url 'pyjams:feature_playlist' playlist.id %}"
+                                            hx-swap="outerHTML">
+                                        Set as Featured
+                                    </button>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <p class="text-muted text-center">No playlists available</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "modals/create_playlist.html" %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script>
+document.getElementById('playlistFilter').addEventListener('input', function(e) {
+    const filter = e.target.value.toLowerCase();
+    document.querySelectorAll('.playlist-item').forEach(item => {
+        const name = item.dataset.playlistName;
+        item.style.display = name.includes(filter) ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}

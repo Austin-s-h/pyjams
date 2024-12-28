@@ -12,8 +12,21 @@
             <ul class="navbar-nav me-auto">
                 {% if user.is_authenticated %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'pyjams:get_playlists' %}">
-                        <i class="fas fa-list me-1"></i>Playlists
+                    <a class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}" 
+                       href="{% url 'pyjams:index' %}">
+                        <i class="fas fa-home me-1"></i>Home
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'featured' %}active{% endif %}" 
+                       href="{% url 'pyjams:get_playlists' %}">
+                        <i class="fas fa-star me-1"></i>Featured
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'community' %}active{% endif %}" 
+                       href="{% url 'pyjams:get_playlists' %}">
+                        <i class="fas fa-users me-1"></i>Community
                     </a>
                 </li>
                 {% endif %}
@@ -26,14 +39,24 @@
                         <i class="fas fa-user me-1"></i>{{ user.first_name }}
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        {% if user.is_staff %}
                         <li>
-                            <a class="dropdown-item" href="{% url 'admin:index' %}">
-                                <i class="fas fa-cog me-1"></i>Admin
+                            <a class="dropdown-item" href="#">
+                                <i class="fas fa-user-circle me-1"></i>Profile
                             </a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'pyjams:get_playlists' %}">
+                                <i class="fas fa-list me-1"></i>My Playlists
+                            </a>
+                        </li>
+                        {% if user.is_staff %}
+                        <li>
+                            <a class="dropdown-item" href="{% url 'pyjams:manage_spotify' %}">
+                                <i class="fas fa-cog me-1"></i>Manage Spotify
+                            </a>
+                        </li>
                         {% endif %}
+                        <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item" href="{% url 'pyjams:logout' %}">
                                 <i class="fas fa-sign-out-alt me-1"></i>Logout

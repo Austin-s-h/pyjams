@@ -1,15 +1,13 @@
-<div class="search-section mb-4">
-    <div class="input-group">
-        <span class="input-group-text">
-            <i class="fas fa-search"></i>
-        </span>
+{% csrf_token %}
+<div class="search-container mb-4">
+    <div class="search-input-group">
+        <i class="fas fa-search search-icon"></i>
         <input type="text" 
-               class="form-control" 
+               class="search-input" 
                id="searchInput" 
                placeholder="Search tracks..."
-               data-bs-toggle="dropdown"
-               aria-expanded="false">
-        <div class="dropdown-menu w-100" id="searchResults">
+               autocomplete="off">
+        <div class="search-results" id="searchResults">
             <!-- Results populated by JS -->
         </div>
     </div>
