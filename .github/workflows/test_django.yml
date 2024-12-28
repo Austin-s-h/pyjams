@@ -44,7 +44,6 @@ jobs:
         cache-dependency-glob: "requirements**.txt"
     
     - run: |
-        uv install python
         uv sync --all-extras
     
     - name: Run ${{ matrix.test-type }}
