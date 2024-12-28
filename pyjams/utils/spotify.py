@@ -82,31 +82,31 @@ class SpotifySessionManager:
         self.session = session
 
     def get_token(self) -> dict[str, Any] | None:
-        """Get stored token info from session."""
-        return self.session.get("spotify_token")
+        """Get the stored token from the session."""
+        token = self.session.get("spotify_token") if self.session else None
+        if not token:
+            return None
+        return token
 
-    def store_token(self, token_info: dict[str, Any]) -> None:
-        """Store token info in session with validation."""
-        if not isinstance(token_info, dict) or "access_token" not in token_info:
+    def store_token(self, token: dict[str, Any]) -> None:
+        """Store the token in the session with expiry."""
+        if not isinstance(token, dict) or "access_token" not in token:
             raise TokenError("Invalid token format")
 
-        if "expires_in" in token_info:
-            token_info["expires_at"] = int(time.time()) + token_info["expires_in"]
+        if "expires_at" not in token and "expires_in" in token:
+            token["expires_at"] = int(time.time()) + int(token["expires_in"])
 
-        # Type annotate the session value
-        session_token: dict[str, Any] = token_info
-        self.session["spotify_token"] = session_token
-        self.session.modified = True
+        if self.session:
+            self.session["spotify_token"] = token
 
-    def is_token_expired(self, token_info: dict[str, Any]) -> bool:
-        """Check if token is expired."""
-        if not token_info or "expires_at" not in token_info:
-            return True
-
+    def is_token_expired(self, token: dict[str, Any]) -> bool:
+        """Check if the token is expired."""
         try:
-            expiry_time = int(token_info["expires_at"])
-            return datetime.fromtimestamp(expiry_time, UTC) <= datetime.now(UTC)
-        except (ValueError, TypeError):
+            expiry = token.get("expires_at")
+            if not expiry:
+                return True
+            return int(expiry) < int(time.time())
+        except (TypeError, ValueError):
             return True
 
 
@@ -170,8 +170,10 @@ def get_spotify(session: SessionBase | None) -> spotipy.Spotify:
 
         try:
             access_token = token_info.get("access_token")
-            if not access_token:
-                raise TokenError("No access token available", should_logout=True)
+        except AttributeError:
+            access_token = None
+        if not access_token:
+            raise TokenError("No access token available", should_logout=True)
 
         return spotipy.Spotify(auth=access_token)
 

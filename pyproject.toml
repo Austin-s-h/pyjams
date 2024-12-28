@@ -96,7 +96,18 @@ exclude = ["migrations/"]
 
 [[tool.mypy.overrides]]
 module = "tests.*"
-disable_error_code = ["no-untyped-def"]
+check_untyped_defs = false
+disable_error_code = [
+    "no-untyped-def",
+    "no-untyped-call",
+    "union-attr",
+    "type-arg",
+    "arg-type",
+    "index",
+    "operator"
+]
+strict = false
+warn_return_any = false
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]

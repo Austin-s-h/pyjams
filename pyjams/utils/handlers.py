@@ -1,17 +1,22 @@
+from collections.abc import Callable
 from functools import wraps
+from typing import Any, TypeVar
 
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from spotipy.exceptions import SpotifyException
 
 from .messages import error
 from .spotify import TokenError
 
+ViewFunc = TypeVar("ViewFunc", bound=Callable[..., HttpResponse])
 
-def spotify_error_handler(view_func):
+
+def spotify_error_handler(view_func: ViewFunc) -> Callable[..., HttpResponse]:
     """Handle common Spotify API errors in Django views."""
 
     @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
+    def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         try:
             return view_func(request, *args, **kwargs)
         except TokenError as te:

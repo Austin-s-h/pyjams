@@ -1,6 +1,6 @@
 from django.contrib import auth, messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_http_methods
@@ -17,7 +17,7 @@ from pyjams.utils.spotify import (
 
 
 @require_http_methods(["GET"])
-def index(request):
+def index(request: HttpRequest) -> HttpResponse:
     """Render index page with login or search interface."""
     playlists = []
     managed_playlists = []
@@ -48,7 +48,7 @@ def index(request):
 
 @login_required
 @require_http_methods(["GET"])
-def playlist_details(request, playlist_id):
+def playlist_details(request: HttpRequest, playlist_id: str) -> HttpResponse:
     spotify = get_spotify(request.session)
     current_user = spotify.current_user()
 
@@ -81,7 +81,7 @@ def playlist_details(request, playlist_id):
 
 @login_required
 @require_http_methods(["GET"])
-def get_playlists(request):
+def get_playlists(request: HttpRequest) -> HttpResponse:
     """View to display user's playlists."""
     try:
         manager = SpotifySessionManager(request.session)
@@ -101,7 +101,7 @@ def get_playlists(request):
 
 @login_required
 @require_http_methods(["GET"])
-def get_playlist(request, playlist_id):
+def get_playlist(request: HttpRequest, playlist_id: str) -> JsonResponse:
     """Get a specific playlist by ID."""
     try:
         spotify = get_spotify(request.session)
@@ -113,7 +113,7 @@ def get_playlist(request, playlist_id):
 
 @login_required
 @require_http_methods(["POST"])
-def create_playlist(request):
+def create_playlist(request: HttpRequest) -> JsonResponse:
     """Create a new playlist."""
     spotify = get_spotify(request.session)
     name = request.POST.get("name")
@@ -134,7 +134,7 @@ def create_playlist(request):
 
 @login_required
 @require_http_methods(["POST"])
-def add_track(request):
+def add_track(request: HttpRequest) -> JsonResponse:
     """Add a track to a playlist."""
     spotify = get_spotify(request.session)
     track_id = request.POST.get("track_id")
@@ -159,7 +159,7 @@ def add_track(request):
 
 @login_required
 @require_http_methods(["POST"])
-def remove_track(request):
+def remove_track(request: HttpRequest) -> JsonResponse:
     """Remove a track from a playlist."""
     spotify = get_spotify(request.session)
     track_id = request.POST.get("track_id")
@@ -179,7 +179,7 @@ def remove_track(request):
 
 @login_required
 @require_http_methods(["GET"])
-def search_tracks(request):
+def search_tracks(request: HttpRequest) -> HttpResponse | JsonResponse:
     q = request.GET.get("q", "")
     if len(q) < 2:
         return render(request, "components/search_results.html", {"tracks": []})
@@ -208,19 +208,19 @@ def search_tracks(request):
 
 
 @require_http_methods(["GET"])
-def privacy(request):
+def privacy(request: HttpRequest) -> HttpResponse:
     """Render privacy policy page."""
     return render(request, "privacy.html")
 
 
 @require_http_methods(["GET"])
-def terms(request):
+def terms(request: HttpRequest) -> HttpResponse:
     """Render terms of service page."""
     return render(request, "terms.html")
 
 
 @require_http_methods(["GET", "POST"])
-def logout(request):
+def logout(request: HttpRequest) -> HttpResponse:
     """Logout user and clear session."""
     if request.user.is_authenticated:
         auth.logout(request)
@@ -230,14 +230,14 @@ def logout(request):
 
 
 @require_http_methods(["GET"])
-def spotify_login(request):
+def spotify_login(request: HttpRequest) -> HttpResponse:
     """Initiate Spotify OAuth flow."""
     auth_url = initiate_spotify_auth(request)
     return redirect(auth_url)
 
 
 @require_http_methods(["GET"])
-def spotify_callback(request):
+def spotify_callback(request: HttpRequest) -> HttpResponse:
     """Handle Spotify OAuth callback."""
     code = request.GET.get("code")
     state = request.GET.get("state")

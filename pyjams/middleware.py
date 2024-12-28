@@ -1,3 +1,6 @@
+from collections.abc import Callable
+
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -5,10 +8,10 @@ from pyjams.utils.spotify import SpotifySessionManager, TokenError
 
 
 class SpotifySessionMiddleware:
-    def __init__(self, get_response):
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
-    def __call__(self, request):
+    def __call__(self, request: HttpRequest) -> HttpResponse:
         if request.user.is_authenticated:
             try:
                 manager = SpotifySessionManager(request.session)
