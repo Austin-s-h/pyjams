@@ -28,28 +28,29 @@ class SpotifySessionManager:
         
     def get_token(self) -> dict[str, Any] | None:
         """Get stored token info from session."""
-        token = self.session.get('spotify_token')
-        if token and ('expires_at' not in token or token['expires_at'] is None):
-            token['expires_at'] = int(time.time()) + token.get('expires_in', 3600)
-        return token
+        return self.session.get('spotify_token')
         
     def store_token(self, token_info: dict[str, Any]) -> None:
         """Store token info in session with validation."""
-        if not isinstance(token_info, dict):
+        if not isinstance(token_info, dict) or 'access_token' not in token_info:
             raise TokenError("Invalid token format")
             
-        # Ensure expires_at is valid
-        if 'expires_at' not in token_info or token_info['expires_at'] is None:
-            token_info['expires_at'] = int(time.time()) + token_info.get('expires_in', 3600)
+        if 'expires_in' in token_info:
+            token_info['expires_at'] = int(time.time()) + token_info['expires_in']
             
         self.session['spotify_token'] = token_info
         self.session.modified = True
         
     def is_token_expired(self, token_info: dict[str, Any]) -> bool:
         """Check if token is expired."""
-        if 'expires_at' not in token_info:
-            return False
-        return datetime.fromtimestamp(token_info['expires_at'], UTC) <= datetime.now(UTC)
+        if not token_info or 'expires_at' not in token_info:
+            return True
+            
+        try:
+            expiry_time = int(token_info['expires_at'])
+            return datetime.fromtimestamp(expiry_time, UTC) <= datetime.now(UTC)
+        except (ValueError, TypeError):
+            return True
 
 
 def get_spotify_auth(request=None) -> SpotifyOAuth:
