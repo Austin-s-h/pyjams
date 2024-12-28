@@ -265,7 +265,7 @@ MESSAGE_TAGS = {
 SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
 if IS_HEROKU_APP:
-    SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'https://pyjams-app-9cff897c521d.herokuapp.com/callback/')
+    SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'https://pyjams.sansterbioanalytics.com/callback/')
 else:
     SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback/')
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):

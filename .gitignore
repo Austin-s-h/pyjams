@@ -12,6 +12,8 @@ wheels/
 .env
 *.db
 *.sqlite3
+*.crt
+*.key
 
 # Static files
 /staticfiles/*
