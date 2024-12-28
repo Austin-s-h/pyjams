@@ -81,11 +81,19 @@ class SpotifySessionManager:
     def __init__(self, session: SessionBase):
         self.session = session
 
-    def get_token(self) -> dict[str, Any] | None:
-        """Get the stored token from the session."""
-        token = self.session.get("spotify_token") if self.session else None
-        if not token:
-            return None
+    def get_token(self) -> dict[str, Any]:
+        """Get the stored token from the session.
+
+        Raises:
+            TokenError: If no valid token is found
+        """
+        if not self.session:
+            raise TokenError("No session available")
+
+        token = self.session.get("spotify_token")
+        if not isinstance(token, dict):
+            raise TokenError("Invalid token format in session")
+
         return token
 
     def store_token(self, token: dict[str, Any]) -> None:
@@ -101,13 +109,42 @@ class SpotifySessionManager:
 
     def is_token_expired(self, token: dict[str, Any]) -> bool:
         """Check if the token is expired."""
+        if not isinstance(token, dict):
+            return True
         try:
             expiry = token.get("expires_at")
-            if not expiry:
+            if expiry is None:
                 return True
             return int(expiry) < int(time.time())
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, AttributeError):
             return True
+
+    def refresh_token(self, token: dict[str, Any]) -> dict[str, Any]:
+        """Refresh an expired token.
+
+        Args:
+            token: The expired token dict
+
+        Returns:
+            The new token dict
+
+        Raises:
+            TokenError: If refresh fails
+        """
+        if not isinstance(token, dict):
+            raise TokenError("Invalid token format")
+
+        refresh_token = token.get("refresh_token")
+        if not refresh_token:
+            raise TokenError("No refresh token available")
+
+        spotify_oauth = get_spotify_auth()
+        new_token = spotify_oauth.refresh_access_token(refresh_token)
+        if not new_token:
+            raise TokenError("Failed to refresh token")
+
+        self.store_token(new_token)
+        return new_token
 
 
 def get_spotify_auth(request: HttpRequest | None = None) -> SpotifyOAuth:
@@ -150,9 +187,9 @@ def get_spotify(session: SessionBase | None) -> spotipy.Spotify:
             raise TokenError("No session available", should_logout=True)
 
         manager = SpotifySessionManager(session)
-        token_info = manager.get_token()
-
-        if not token_info:
+        try:
+            token_info = manager.get_token()
+        except TokenError:
             raise TokenError("No Spotify tokens in session", should_logout=True)
 
         # Check if token is expired
@@ -162,16 +199,15 @@ def get_spotify(session: SessionBase | None) -> spotipy.Spotify:
             refresh_token = token_info.get("refresh_token")
             if not refresh_token:
                 raise TokenError("No refresh token available", should_logout=True)
+
             new_token_info = spotify_oauth.refresh_access_token(refresh_token)
             if not new_token_info:
                 raise TokenError("Failed to refresh token", should_logout=True)
+
             manager.store_token(new_token_info)
             token_info = new_token_info
 
-        try:
-            access_token = token_info.get("access_token")
-        except AttributeError:
-            access_token = None
+        access_token = token_info.get("access_token")
         if not access_token:
             raise TokenError("No access token available", should_logout=True)
 
@@ -181,7 +217,7 @@ def get_spotify(session: SessionBase | None) -> spotipy.Spotify:
         raise TokenError(f"Failed to initialize Spotify client: {e!s}", should_logout=True)
 
 
-def get_playlist_info(spotify: Spotify, playlist_id: str) -> tuple[dict, dict]:
+def get_playlist_info(spotify: Spotify, playlist_id: str) -> tuple[dict, dict]:  # type: ignore
     """Get playlist and its tracks.
 
     Args:
