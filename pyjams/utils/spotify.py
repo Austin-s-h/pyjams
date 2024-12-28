@@ -1,17 +1,20 @@
 import time
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import spotipy
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.backends import BaseBackend
+from django.contrib.auth.models import AbstractUser
 from django.contrib.sessions.backends.base import SessionBase
 from django.http import HttpRequest
 from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
 
-User = get_user_model()
+# Define User type properly for type checking
+_UserModel = get_user_model()
+User = cast(type[AbstractUser], _UserModel)
 
 
 class SpotifyAuthenticationBackend(BaseBackend):
@@ -22,7 +25,7 @@ class SpotifyAuthenticationBackend(BaseBackend):
         refresh_token: str | None = None,
         expires_in: int | None = None,
         **kwargs: Any,
-    ) -> User | None:
+    ) -> AbstractUser | None:
         if not access_token:
             return None
 
@@ -56,7 +59,7 @@ class SpotifyAuthenticationBackend(BaseBackend):
             print(f"Spotify authentication error: {e}")
             return None
 
-    def get_user(self, user_id: int) -> User | None:
+    def get_user(self, user_id: int) -> AbstractUser | None:
         try:
             return User.objects.get(pk=user_id)
         except User.DoesNotExist:
@@ -90,7 +93,9 @@ class SpotifySessionManager:
         if "expires_in" in token_info:
             token_info["expires_at"] = int(time.time()) + token_info["expires_in"]
 
-        self.session["spotify_token"] = token_info
+        # Type annotate the session value
+        session_token: dict[str, Any] = token_info
+        self.session["spotify_token"] = session_token
         self.session.modified = True
 
     def is_token_expired(self, token_info: dict[str, Any]) -> bool:
@@ -154,10 +159,21 @@ def get_spotify(session: SessionBase | None) -> spotipy.Spotify:
         if manager.is_token_expired(token_info):
             # Refresh token
             spotify_oauth = get_spotify_auth()
-            token_info = spotify_oauth.refresh_access_token(token_info["refresh_token"])
-            manager.store_token(token_info)
+            refresh_token = token_info.get("refresh_token")
+            if not refresh_token:
+                raise TokenError("No refresh token available", should_logout=True)
+            new_token_info = spotify_oauth.refresh_access_token(refresh_token)
+            if not new_token_info:
+                raise TokenError("Failed to refresh token", should_logout=True)
+            manager.store_token(new_token_info)
+            token_info = new_token_info
 
-        return spotipy.Spotify(auth=token_info["access_token"])
+        try:
+            access_token = token_info.get("access_token")
+            if not access_token:
+                raise TokenError("No access token available", should_logout=True)
+
+        return spotipy.Spotify(auth=access_token)
 
     except Exception as e:
         raise TokenError(f"Failed to initialize Spotify client: {e!s}", should_logout=True)
@@ -198,10 +214,11 @@ def refresh_token_if_expired(request: HttpRequest) -> None:
 
         if manager.is_token_expired(token_info):
             try:
-                token_info = sp_oauth.refresh_access_token(token_info["refresh_token"])
-                manager.store_token(token_info)
+                new_token_info = sp_oauth.refresh_access_token(token_info["refresh_token"])
+                if new_token_info is None:
+                    raise TokenError("Failed to refresh token", should_logout=True)
+                manager.store_token(new_token_info)
             except Exception as e:
-                # Clear corrupted session data
                 request.session.flush()
                 raise TokenError(f"Failed to refresh token: {e}", should_logout=True)
 

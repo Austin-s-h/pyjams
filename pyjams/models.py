@@ -108,7 +108,7 @@ class FeaturedPlaylist(models.Model):
     contribution_rules = models.JSONField(default=dict)
     managers = models.ManyToManyField(User, through="PlaylistManager", related_name="managed_featured_playlists")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     def user_can_manage(self, user: User) -> bool:
