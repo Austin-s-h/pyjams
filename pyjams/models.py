@@ -1,5 +1,5 @@
 from enum import Enum, Flag, auto
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -24,6 +24,7 @@ class Permission(Flag):
     MODERATOR = MANAGER | MODERATE
     ALL = ~NONE
 
+
 class UserRole(str, Enum):
     GUEST = "guest"
     USER = "user"
@@ -41,16 +42,18 @@ class UserRole(str, Enum):
             self.ADMIN: Permission.ALL,
         }[self]
 
+
 class User(AbstractUser):
     """
     Unified user model with minimal Spotify information
     """
+
     # Only essential Spotify fields
     spotify_id = models.CharField(max_length=64, unique=True, null=True, blank=True, db_index=True)
     spotify_email = models.EmailField(null=True, blank=True)
     spotify_display_name = models.CharField(max_length=255, null=True, blank=True)
     spotify_username = models.CharField(max_length=64, null=True, blank=True, db_index=True)  # Added this field
-    
+
     # Role management
     role = models.CharField(
         max_length=20,
@@ -59,8 +62,8 @@ class User(AbstractUser):
     )
 
     class Meta:
-        swappable = 'AUTH_USER_MODEL'
-        db_table = 'pyjams_user'
+        swappable = "AUTH_USER_MODEL"
+        db_table = "pyjams_user"
 
     def has_permission(self, permission: Permission) -> bool:
         return bool(UserRole(self.role).permissions & permission)
@@ -89,8 +92,9 @@ class User(AbstractUser):
         return self.spotify_display_name or self.username
 
     @classmethod
-    def get_by_spotify_id(cls, spotify_id: str):
+    def get_by_spotify_id(cls, spotify_id: str) -> Optional["User"]:
         return cls.objects.filter(spotify_id=spotify_id).first()
+
 
 class FeaturedPlaylist(models.Model):
     spotify_id = models.CharField(max_length=64, unique=True, db_index=True)
@@ -98,19 +102,11 @@ class FeaturedPlaylist(models.Model):
     description = models.TextField(max_length=1000, null=True, blank=True)
     image_url = models.URLField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    creator = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name='featured_playlists'
-    )
+    creator = models.ForeignKey(User, on_delete=models.PROTECT, related_name="featured_playlists")
     is_active = models.BooleanField(default=True)
     is_visible = models.BooleanField(default=True)
     contribution_rules = models.JSONField(default=dict)
-    managers = models.ManyToManyField(
-        User,
-        through='PlaylistManager',
-        related_name='managed_featured_playlists'
-    )
+    managers = models.ManyToManyField(User, through="PlaylistManager", related_name="managed_featured_playlists")
 
     def __str__(self):
         return self.name
@@ -118,42 +114,37 @@ class FeaturedPlaylist(models.Model):
     def user_can_manage(self, user: User) -> bool:
         if user.is_admin or user.id == self.creator.id:
             return True
-        return self.managers_through.filter(
-            user=user,
-            is_active=True
-        ).exists()
+        return self.managers_through.filter(user=user, is_active=True).exists()
+
 
 class PlaylistManager(models.Model):
-    playlist = models.ForeignKey(FeaturedPlaylist, on_delete=models.CASCADE, related_name='managers_through')
-    user = models.ForeignKey(
-        User, 
-        on_delete=models.CASCADE,
-        related_name='managed_playlists'
-    )
+    playlist = models.ForeignKey(FeaturedPlaylist, on_delete=models.CASCADE, related_name="managers_through")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="managed_playlists")
     permissions = models.JSONField(default=dict)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together: ClassVar[list[str]] = ['playlist', 'user']
+        unique_together: ClassVar[list[str]] = ["playlist", "user"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.user.name} - {self.playlist.name}"  # Using name instead of username
 
-    def has_permission(self, permission_key):
+    def has_permission(self, permission_key: str) -> bool:
         return self.permissions.get(permission_key, False)
 
     @classmethod
-    def get_active_managers(cls, playlist_id):
+    def get_active_managers(cls, playlist_id: int) -> models.QuerySet["PlaylistManager"]:
         return cls.objects.filter(playlist_id=playlist_id, is_active=True)
+
 
 class ModerationAction(models.Model):
     playlist = models.ForeignKey(FeaturedPlaylist, on_delete=models.CASCADE)
-    moderator = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT
-    )
+    moderator = models.ForeignKey(User, on_delete=models.PROTECT)
     action_type = models.CharField(max_length=32)
     reason = models.TextField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
     action_metadata = models.JSONField(default=dict)
+
+    def __str__(self) -> str:
+        return f"{self.moderator} - {self.action_type} - {self.playlist}"

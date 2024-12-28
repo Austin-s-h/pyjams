@@ -16,13 +16,15 @@ def get_templates_dir() -> Path:
 def render_template(request: HttpRequest, template_name: str, context: dict[str, Any]) -> TemplateResponse:
     """Render template with common context data."""
     context = context or {}
-    
+
     # Add common context data
-    context.update({
-        'request': request,
-        'settings': settings,
-        'current_year': datetime.now().year,
-    })
+    context.update(
+        {
+            "request": request,
+            "settings": settings,
+            "current_year": datetime.now().year,
+        }
+    )
 
     return render(
         request=request,

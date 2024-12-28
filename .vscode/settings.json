@@ -8,6 +8,17 @@
         },
         "editor.defaultFormatter": "charliermarsh.ruff",
     },
+    // Python environment settings
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.typeCheckingMode": "strict",
+    // Mypy settings
+    "mypy.enabled": true,
+    "mypy.dmypyExecutable": ".venv/bin/dmypy",
+    "mypy.runUsingActiveInterpreter": true,
+    "mypy.configFile": "${workspaceFolder}/pyproject.toml",
+    // Linting and testing
     "ruff.lint.args": [
         "--config=${workspaceFolder}/pyproject.toml"
     ],
@@ -16,5 +27,5 @@
         "test"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true,
+    "python.testing.pytestEnabled": true
 }

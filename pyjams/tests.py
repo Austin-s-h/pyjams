@@ -8,8 +8,6 @@ from django.test import TestCase
 # 2. Or, the tests are run in debug mode (which means WhiteNoise will use auto-refresh mode),
 #    using: `./manage.py test --debug-mode`
 class ExampleTest(TestCase):
-    def test_index_page(self):
+    def test_index_page(self) -> None:
         response = self.client.get("/")
-        self.assertContains(
-            response, "PyJams - Home", status_code=200
-        )
+        self.assertContains(response, "PyJams - Home", status_code=200)

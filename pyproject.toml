@@ -86,3 +86,25 @@ indent-style = "space"
 line-ending = "auto"
 quote-style = "double"
 skip-magic-trailing-comma = false
+
+[tool.mypy]
+ignore_missing_imports = true
+disable_error_code = ["misc", "attr-defined"]
+strict = true
+warn_return_any = false
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["no-untyped-def"]
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "tasks"
+disable_error_code = ["no-untyped-def"]
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "manage"
+disable_error_code = ["no-untyped-def"]
+disallow_untyped_defs = false

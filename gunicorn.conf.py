@@ -63,11 +63,11 @@ access_log_format = (
 )
 
 # Ensure proper proxy header handling
-forwarded_allow_ips = '*'
+forwarded_allow_ips = "*"
 secure_scheme_headers = {
-    'X-FORWARDED-PROTO': 'https',
-    'X-FORWARDED-SSL': 'on',
-    'X-FORWARDED-HOST': 'pyjams.sansterbioanalytics.com'
+    "X-FORWARDED-PROTO": "https",
+    "X-FORWARDED-SSL": "on",
+    "X-FORWARDED-HOST": "pyjams.sansterbioanalytics.com",
 }
-proxy_allow_ips = '*'
+proxy_allow_ips = "*"
 proxy_protocol = True

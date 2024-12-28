@@ -4,12 +4,12 @@ from .spotify import get_playlist_info, get_spotify
 from .templates import render_template
 
 __all__ = [
-    'error',
-    'get_playlist_info',
-    'get_spotify',
-    'info',
-    'render_template',
-    'spotify_error_handler',
-    'success',
-    'warning',
+    "error",
+    "get_playlist_info",
+    "get_spotify",
+    "info",
+    "render_template",
+    "spotify_error_handler",
+    "success",
+    "warning",
 ]

@@ -55,37 +55,37 @@ ALLOWED_HOSTS = ["*"] if IS_HEROKU_APP else ["localhost", "127.0.0.1", "[::1]", 
 if IS_HEROKU_APP:
     # SSL and Security Headers
     SECURE_SSL_REDIRECT = True
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
     # Cookie Settings
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
+
     # HSTS Settings
     SECURE_HSTS_SECONDS = 31536000  # 1 year
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    
+
     # Additional Security Headers
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    
+    X_FRAME_OPTIONS = "DENY"
+
     # Trusted Hosts
     ALLOWED_HOSTS = [
-        'pyjams.sansterbioanalytics.com',
-        'pyjams-app-9cff897c521d.herokuapp.com',
-        'www.sansterbioanalytics.com',  # Allow www version for redirect
+        "pyjams.sansterbioanalytics.com",
+        "pyjams-app-9cff897c521d.herokuapp.com",
+        "www.sansterbioanalytics.com",  # Allow www version for redirect
     ]
-    
+
     # CSRF Trusted Origins
     CSRF_TRUSTED_ORIGINS = [
-        'https://pyjams.sansterbioanalytics.com',
-        'https://pyjams-app-9cff897c521d.herokuapp.com',
-        'https://www.sansterbioanalytics.com',
+        "https://pyjams.sansterbioanalytics.com",
+        "https://pyjams-app-9cff897c521d.herokuapp.com",
+        "https://www.sansterbioanalytics.com",
     ]
 # Get port from environment variable or default to 8000
-PORT = int(os.environ.get('PORT', 5006))
+PORT = int(os.environ.get("PORT", 5006))
 
 # Application definition
 
@@ -98,19 +98,19 @@ PORT = int(os.environ.get('PORT', 5006))
 # https://docs.djangoproject.com/en/5.1/topics/http/sessions/
 # https://docs.djangoproject.com/en/5.1/ref/contrib/messages/
 INSTALLED_APPS = [
-    'whitenoise.runserver_nostatic',  # Must be before django.contrib.staticfiles
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'pyjams.apps.PyjamsConfig',  # Use the AppConfig
+    "whitenoise.runserver_nostatic",  # Must be before django.contrib.staticfiles
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "pyjams.apps.PyjamsConfig",  # Use the AppConfig
 ]
-    # Django doesn't support serving static assets in a production-ready way, so we use the
-    # excellent WhiteNoise package to do so instead. The WhiteNoise middleware must be listed
-    # after Django's `SecurityMiddleware` so that security redirects are still performed.
-    # See: https://whitenoise.readthedocs.io
+# Django doesn't support serving static assets in a production-ready way, so we use the
+# excellent WhiteNoise package to do so instead. The WhiteNoise middleware must be listed
+# after Django's `SecurityMiddleware` so that security redirects are still performed.
+# See: https://whitenoise.readthedocs.io
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -125,29 +125,29 @@ MIDDLEWARE = [
 ]
 
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'pyjams.auth.SpotifyAuthenticationBackend',
+    "django.contrib.auth.backends.ModelBackend",
+    "pyjams.utils.spotify.SpotifyAuthenticationBackend",
 ]
 
 # Custom User Model
-AUTH_USER_MODEL = 'pyjams.User'
+AUTH_USER_MODEL = "pyjams.User"
 
 ROOT_URLCONF = "pyjams.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [
-            BASE_DIR / 'pyjams' / 'templates',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [
+            BASE_DIR / "pyjams" / "templates",
         ],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'django.template.context_processors.static',
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.static",
             ],
         },
     },
@@ -218,18 +218,18 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'pyjams' / 'static']
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "pyjams" / "static"]
 
 # Ensure this directory exists for development
 if not IS_HEROKU_APP:
-    STATIC_DEV_DIR = BASE_DIR / 'static'
+    STATIC_DEV_DIR = BASE_DIR / "static"
     STATIC_DEV_DIR.mkdir(exist_ok=True)
     STATICFILES_DIRS = [STATIC_DEV_DIR]
 
 # WhiteNoise Configuration
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 WHITENOISE_MANIFEST_STRICT = False
 WHITENOISE_USE_FINDERS = True
 
@@ -242,45 +242,45 @@ WHITENOISE_COMPRESSION_ENABLED = True
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Authentication settings
-LOGIN_URL = '/accounts/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
 
 # Messages settings
-MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+MESSAGE_STORAGE = "django.contrib.messages.storage.session.SessionStorage"
 
 # Message tags to match Bootstrap classes
 
 
 MESSAGE_TAGS = {
-    messages.DEBUG: 'alert-info',
-    messages.INFO: 'alert-info',
-    messages.SUCCESS: 'alert-success',
-    messages.WARNING: 'alert-warning',
-    messages.ERROR: 'alert-danger',
+    messages.DEBUG: "alert-info",
+    messages.INFO: "alert-info",
+    messages.SUCCESS: "alert-success",
+    messages.WARNING: "alert-warning",
+    messages.ERROR: "alert-danger",
 }
 
 
 # Spotify Settings
-SPOTIFY_CLIENT_ID = os.environ.get('SPOTIFY_CLIENT_ID')
-SPOTIFY_CLIENT_SECRET = os.environ.get('SPOTIFY_CLIENT_SECRET')
+SPOTIFY_CLIENT_ID = os.environ.get("SPOTIFY_CLIENT_ID")
+SPOTIFY_CLIENT_SECRET = os.environ.get("SPOTIFY_CLIENT_SECRET")
 if IS_HEROKU_APP:
-    SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'https://pyjams.sansterbioanalytics.com/callback/')
+    SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "https://pyjams.sansterbioanalytics.com/callback/")
 else:
-    SPOTIFY_REDIRECT_URI = os.environ.get('SPOTIFY_REDIRECT_URI', 'http://127.0.0.1:5006/callback/')
+    SPOTIFY_REDIRECT_URI = os.environ.get("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:5006/callback/")
 if not all([SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET]):
-    raise ValueError('Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables')
-SPOTIFY_SCOPE = 'playlist-modify-public playlist-modify-private user-read-private user-read-email'
+    raise ValueError("Missing SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET environment variables")
+SPOTIFY_SCOPE = "playlist-modify-public playlist-modify-private user-read-private user-read-email"
 
 # Session Settings - Optimized for OAuth flows
 # Session Settings
-SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
-SESSION_COOKIE_NAME = 'pyjams_sessionid'
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_SERIALIZER = "django.contrib.sessions.serializers.JSONSerializer"
+SESSION_COOKIE_NAME = "pyjams_sessionid"
 SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
 SESSION_COOKIE_SECURE = IS_HEROKU_APP
 SESSION_COOKIE_HTTPONLY = True
-SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth flow
 
 # Enable signed cookie-based sessions as fallback
@@ -290,36 +290,38 @@ SESSION_COOKIE_DOMAIN = None  # Allow all subdomains
 # CSRF Settings
 CSRF_COOKIE_SECURE = IS_HEROKU_APP  # True in production
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5006',
-    'http://127.0.0.1:5006',
+    "http://localhost:5006",
+    "http://127.0.0.1:5006",
 ]
 if IS_HEROKU_APP:
-    CSRF_TRUSTED_ORIGINS.extend([
-        # Add your production domains here
-        'https://*.herokuapp.com',
-        'https://*.sansterbioanalytics.com',
-    ])
+    CSRF_TRUSTED_ORIGINS.extend(
+        [
+            # Add your production domains here
+            "https://*.herokuapp.com",
+            "https://*.sansterbioanalytics.com",
+        ]
+    )
 # Logging Configuration
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
     },
 }
 
@@ -327,4 +329,4 @@ LOGGING = {
 APPEND_SLASH = True  # Keep this if you want trailing slashes enforced
 
 # Set primary domain
-PRIMARY_DOMAIN = 'pyjams.sansterbioanalytics.com'
+PRIMARY_DOMAIN = "pyjams.sansterbioanalytics.com"
