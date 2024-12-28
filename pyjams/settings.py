@@ -322,3 +322,9 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Control trailing slashes
+APPEND_SLASH = True  # Keep this if you want trailing slashes enforced
+
+# Set primary domain
+PRIMARY_DOMAIN = 'pyjams.sansterbioanalytics.com'
