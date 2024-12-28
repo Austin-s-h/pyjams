@@ -13,15 +13,11 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    environment: pyjams-app
     strategy:
       fail-fast: false
       matrix:
         test-type: ['lint', 'pytest', 'django']
-        include:
-          - test-type: pytest
-            needs-db: true
-          - test-type: django
-            needs-db: true
     services:
       postgres:
         image: postgres:latest
@@ -48,7 +44,7 @@ jobs:
     
     - name: Run ${{ matrix.test-type }}
       env:
-        DATABASE_URL: ${{ matrix.needs-db && 'postgresql://postgres:postgres@localhost:5432/test_db' || '' }}
+        DATABASE_URL: ${{ 'postgresql://postgres:postgres@localhost:5432/test_db'}}
         SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
         SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
       run: |
