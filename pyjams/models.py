@@ -102,8 +102,8 @@ class User(AbstractUser):
 
 class FeaturedPlaylist(models.Model):
     FEATURED_TYPES: ClassVar[list[tuple[str, str]]] = [
-        ("community", "Community Featured"),
         ("site", "Site Featured"),
+        ("community", "Community Featured"),
     ]
 
     spotify_id = models.CharField(max_length=64, unique=True, db_index=True)
@@ -173,6 +173,40 @@ class FeaturedPlaylist(models.Model):
     def user_has_featured(cls, user: User) -> bool:
         """Check if user already has a featured community playlist."""
         return cls.objects.filter(creator=user, featured_type="community", is_active=True).exists()
+
+    @classmethod
+    def set_site_featured(
+        cls, spotify_id: str, name: str, description: str | None, image_url: str | None, creator: User
+    ) -> "FeaturedPlaylist":
+        """Set a new site-wide featured playlist."""
+        # Deactivate current site featured playlist
+        cls.objects.filter(featured_type="site", is_active=True).update(is_active=False, unfeatured_date=timezone.now())
+
+        # Create new site featured playlist
+        return cls.objects.create(
+            spotify_id=spotify_id,
+            name=name,
+            description=description,
+            image_url=image_url,
+            featured_type="site",
+            creator=creator,
+            is_active=True,
+            featured_date=timezone.now(),
+        )
+
+    @classmethod
+    def get_previous_site_featured(cls) -> models.QuerySet["FeaturedPlaylist"]:
+        """Get previous site featured playlists."""
+        return cls.objects.filter(featured_type="site", is_active=False).order_by("-unfeatured_date")
+
+    def unfeature_site_playlist(self) -> None:
+        """Unfeature the current site playlist."""
+        if self.featured_type == "site" and self.is_active:
+            self.is_active = False
+            self.unfeatured_date = timezone.now()
+            self.save()
+        else:
+            raise ValidationError("This is not an active site featured playlist")
 
 
 class PlaylistManager(models.Model):

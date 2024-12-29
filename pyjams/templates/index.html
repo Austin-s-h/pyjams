@@ -6,6 +6,16 @@
 {% block content %}
 <div class="container py-4">
     {% if request.user.is_authenticated %}
+        <!-- Add search section -->
+        {% if request.user.has_permission.SEARCH %}
+        <div class="row mb-4">
+            <div class="col-md-8 mx-auto">
+                <h2 class="text-light mb-3">Search Tracks</h2>
+                {% include "components/search.html" %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="row">
             <div class="col-md-8">
                 <h2 class="text-light mb-4">Featured Playlists</h2>
@@ -59,5 +69,36 @@
             </a>
         </div>
     {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const searchUrl = "{% url 'pyjams:search_tracks' %}";
+    // Remove the direct URL generation since it needs a playlist_id
+    let currentPlaylistId = null; // Will be set when user selects a playlist
+</script>
+<script src="{% static 'js/search.js' %}"></script>
+
+<!-- Add playlist selection modal -->
+<div class="modal fade" id="selectPlaylistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Playlist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group">
+                    {% for playlist in managed_playlists %}
+                    <button class="list-group-item list-group-item-action bg-dark text-light"
+                            onclick="selectPlaylist('{{ playlist.spotify_id }}', '{{ playlist.name }}')">
+                        {{ playlist.name }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}

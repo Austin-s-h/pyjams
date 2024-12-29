@@ -5,33 +5,40 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('pyjams', '0004_user_spotify_username'),
+        ("pyjams", "0004_user_spotify_username"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='featuredplaylist',
-            options={'ordering': ['-featured_date']},
+            name="featuredplaylist",
+            options={"ordering": ["-featured_date"]},
         ),
         migrations.AddField(
-            model_name='featuredplaylist',
-            name='featured_date',
+            model_name="featuredplaylist",
+            name="featured_date",
             field=models.DateTimeField(default=django.utils.timezone.now),
         ),
         migrations.AddField(
-            model_name='featuredplaylist',
-            name='featured_type',
-            field=models.CharField(choices=[('community', 'Community Featured'), ('site', 'Site Featured')], default='community', max_length=20),
+            model_name="featuredplaylist",
+            name="featured_type",
+            field=models.CharField(
+                choices=[("community", "Community Featured"), ("site", "Site Featured")],
+                default="community",
+                max_length=20,
+            ),
         ),
         migrations.AddField(
-            model_name='featuredplaylist',
-            name='unfeatured_date',
+            model_name="featuredplaylist",
+            name="unfeatured_date",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddConstraint(
-            model_name='featuredplaylist',
-            constraint=models.UniqueConstraint(condition=models.Q(('featured_type', 'site'), ('is_active', True)), fields=('featured_type',), name='unique_active_site_featured'),
+            model_name="featuredplaylist",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("featured_type", "site"), ("is_active", True)),
+                fields=("featured_type",),
+                name="unique_active_site_featured",
+            ),
         ),
     ]

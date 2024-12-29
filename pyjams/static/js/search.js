@@ -37,21 +37,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update add track handler
                 document.querySelectorAll('.add-track').forEach(button => {
                     button.addEventListener('click', async (e) => {
+                        const trackId = e.target.closest('.add-track').dataset.trackId;
+                        
                         if (!currentPlaylistId) {
-                            PyJams.showError('No playlist selected');
+                            // Show playlist selection modal if no playlist is selected
+                            const modal = new bootstrap.Modal(document.getElementById('selectPlaylistModal'));
+                            modal.show();
                             return;
                         }
 
-                        const btn = e.target.closest('.add-track');
-                        const trackId = btn.dataset.trackId;
-                        
                         try {
                             const formData = new FormData();
                             formData.append('track_id', trackId);
                             formData.append('playlist_id', currentPlaylistId);
                             
-                            const response = await fetch(addSongUrl, {
+                            const response = await fetch(`/playlists/${currentPlaylistId}/tracks/add/`, {
                                 method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': PlaylistUtils.getCookie('csrftoken')
+                                },
                                 body: formData
                             });
                             
@@ -61,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 searchInput.value = '';
                                 searchResults.style.display = 'none';
                             } else {
-                                PyJams.showError(result.detail || 'Error adding track');
+                                PyJams.showError(result.error || 'Error adding track');
                             }
                         } catch (error) {
                             console.error('Error:', error);
@@ -85,3 +89,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Add playlist selection handler
+window.selectPlaylist = function(playlistId, playlistName) {
+    currentPlaylistId = playlistId;
+    document.getElementById('selectPlaylistModal').querySelector('.btn-close').click();
+    PyJams.showSuccess(`Selected playlist: ${playlistName}`);
+}

@@ -49,7 +49,7 @@
             <div class="card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Available Playlists</h5>
+                        <h5 class="mb-0">Available Playlists ({{ available_playlists|length }})</h5>
                         <input type="text" 
                                class="form-control form-control-sm w-auto" 
                                placeholder="Filter playlists..."
@@ -57,23 +57,43 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    {% if debug %}
+                    <div class="alert alert-info">
+                        <p>User: {{ request.user.spotify_id }}</p>
+                        <p>Access Token Present: {{ spotify_token_present }}</p>
+                    </div>
+                    {% endif %}
                     <div class="playlist-grid" id="playlistGrid">
-                        {% for playlist in available_playlists %}
-                            <div class="playlist-item" data-playlist-name="{{ playlist.name|lower }}">
-                                <img src="{{ playlist.images.0.url }}" alt="{{ playlist.name }}">
-                                <div class="playlist-info">
-                                    <h6>{{ playlist.name }}</h6>
-                                    <p class="text-muted small">{{ playlist.tracks.total }} tracks</p>
-                                    <button class="btn btn-primary btn-sm w-100"
-                                            hx-post="{% url 'pyjams:feature_playlist' playlist.id %}"
-                                            hx-swap="outerHTML">
-                                        Set as Featured
-                                    </button>
+                        {% if available_playlists %}
+                            {% for playlist in available_playlists %}
+                                <div class="playlist-item" data-playlist-name="{{ playlist.name|lower }}">
+                                    {% if playlist.images %}
+                                        <img src="{{ playlist.images.0.url }}" alt="{{ playlist.name }}">
+                                    {% else %}
+                                        <div class="placeholder-image">No Image</div>
+                                    {% endif %}
+                                    <div class="playlist-info">
+                                        <h6>{{ playlist.name }}</h6>
+                                        <p class="text-muted small">{{ playlist.tracks.total }} tracks</p>
+                                        <div class="btn-group w-100">
+                                            <button class="btn btn-primary btn-sm"
+                                                    hx-post="{% url 'pyjams:feature_playlist' playlist.id %}"
+                                                    hx-swap="outerHTML">
+                                                Feature
+                                            </button>
+                                            <button class="btn btn-outline-primary btn-sm"
+                                                    onclick="openManageModal('{{ playlist.id }}', '{{ playlist.name|escapejs }}')">
+                                                Manage
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                No playlists available. Make sure you have created playlists in Spotify.
                             </div>
-                        {% empty %}
-                            <p class="text-muted text-center">No playlists available</p>
-                        {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
