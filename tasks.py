@@ -51,18 +51,15 @@ def configure_env(ctx):
 
 
 @task
-def deploy(ctx):
-    """Deploy to Heroku with static files."""
-    verify(ctx)
-    ctx.run("git push heroku master")
+def migrate(ctx):
+    """Run database migrations."""
+    ctx.run("python manage.py migrate")
 
 
-# @task
-# def publish(ctx):
-#     """Publish package to PyPI."""
-#     clean(ctx)
-#     ctx.run("python setup.py sdist bdist_wheel")
-#     ctx.run("twine upload dist/*")
+@task
+def makemigrations(ctx):
+    """Create new migrations based on model changes."""
+    ctx.run("python manage.py makemigrations")
 
 
 @task
@@ -101,3 +98,9 @@ def collectstatic(ctx):
         print(f"Collected static files to {static_root}")
     else:
         print(f"Warning: Static directory {static_dir} not found")
+
+
+@task(pre=[verify, migrate, collectstatic])
+def deploy(ctx):
+    """Deploy to Heroku with static files and migrations."""
+    ctx.run("git push heroku master")

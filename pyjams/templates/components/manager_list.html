@@ -1,0 +1,24 @@
+<div class="manager-list" id="managerList">
+    {% if managers %}
+        <ul class="list-group">
+            {% for manager in managers %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="manager-id">{{ manager.user_id }}</span>
+                    <small class="text-muted">Added: {{ manager.added_date|date:"M d, Y" }}</small>
+                </div>
+                <button class="btn btn-danger btn-sm"
+                        hx-post="{% url 'pyjams:remove_playlist_manager' playlist.id %}"
+                        hx-vals='{"user_id": "{{ manager.user_id }}"}'
+                        hx-confirm="Remove this manager?"
+                        hx-target="#managerList"
+                        hx-swap="outerHTML">
+                    <i class="fas fa-times"></i>
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="text-muted">No managers assigned</p>
+    {% endif %}
+</div>

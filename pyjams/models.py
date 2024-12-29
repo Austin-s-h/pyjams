@@ -17,11 +17,13 @@ class Permission(Flag):
     MANAGE_USERS = auto()
     MODERATE = auto()
     ADMIN = auto()
+    CREATE_FEATURED = auto()  # New permission for creating community featured playlists
+    MANAGE_FEATURED = auto()  # New permission for managing site-wide featured playlist
 
     BASIC = VIEW | SEARCH
-    CONTRIBUTOR = BASIC | SUGGEST | VOTE
+    CONTRIBUTOR = BASIC | SUGGEST | VOTE | CREATE_FEATURED
     MANAGER = CONTRIBUTOR | ADD_SONGS | REMOVE_SONGS | MANAGE_PLAYLIST
-    MODERATOR = MANAGER | MODERATE
+    MODERATOR = MANAGER | MODERATE | MANAGE_FEATURED
     ALL = ~NONE
 
 
@@ -97,8 +99,14 @@ class User(AbstractUser):
 
 
 class FeaturedPlaylist(models.Model):
+    FEATURED_TYPES: ClassVar[list[tuple[str, str]]] = [
+        ("community", "Community Featured"),
+        ("site", "Site Featured"),
+    ]
+
     spotify_id = models.CharField(max_length=64, unique=True, db_index=True)
     name = models.CharField(max_length=255)
+    featured_type = models.CharField(max_length=20, choices=FEATURED_TYPES, default="community")
     description = models.TextField(max_length=1000, null=True, blank=True)
     image_url = models.URLField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -107,6 +115,17 @@ class FeaturedPlaylist(models.Model):
     is_visible = models.BooleanField(default=True)
     contribution_rules = models.JSONField(default=dict)
     managers = models.ManyToManyField(User, through="PlaylistManager", related_name="managed_featured_playlists")
+    featured_date = models.DateTimeField(auto_now_add=True)
+    unfeatured_date = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints: ClassVar[list[models.UniqueConstraint]] = [
+            models.UniqueConstraint(
+                fields=["featured_type"],
+                condition=models.Q(featured_type="site", is_active=True),
+                name="unique_active_site_featured",
+            )
+        ]
 
     def __str__(self) -> str:
         return self.name
@@ -115,6 +134,14 @@ class FeaturedPlaylist(models.Model):
         if user.is_admin or user.id == self.creator.id:
             return True
         return self.managers_through.filter(user=user, is_active=True).exists()
+
+    @classmethod
+    def get_site_featured(cls) -> Optional["FeaturedPlaylist"]:
+        return cls.objects.filter(featured_type="site", is_active=True).first()
+
+    @classmethod
+    def get_community_featured(cls) -> models.QuerySet["FeaturedPlaylist"]:
+        return cls.objects.filter(featured_type="community", is_active=True)
 
 
 class PlaylistManager(models.Model):
@@ -135,7 +162,33 @@ class PlaylistManager(models.Model):
 
     @classmethod
     def get_active_managers(cls, playlist_id: int) -> models.QuerySet["PlaylistManager"]:
-        return cls.objects.filter(playlist_id=playlist_id, is_active=True)
+        return cls.objects.filter(playlist_id=playlist_id, is_active=True).select_related("playlist")
+
+    @classmethod
+    def add_manager(cls, playlist_id: int, user_id: str) -> tuple[bool, str]:
+        try:
+            manager, created = cls.objects.get_or_create(
+                playlist_id=playlist_id, user_id=user_id, defaults={"is_active": True}
+            )
+            if not created and not manager.is_active:
+                manager.is_active = True
+                manager.save()
+                return True, "Manager reactivated successfully"
+            return created, "Manager added successfully"
+        except Exception as e:
+            return False, str(e)
+
+    @classmethod
+    def remove_manager(cls, playlist_id: int, user_id: str) -> tuple[bool, str]:
+        try:
+            manager = cls.objects.get(playlist_id=playlist_id, user_id=user_id, is_active=True)
+            manager.is_active = False
+            manager.save()
+            return True, "Manager removed successfully"
+        except cls.DoesNotExist:
+            return False, "Manager not found"
+        except Exception as e:
+            return False, str(e)
 
 
 class ModerationAction(models.Model):

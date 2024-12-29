@@ -82,10 +82,12 @@
 </div>
 
 {% include "modals/create_playlist.html" %}
+{% include "modals/manager_modal.html" %}
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script src="{% static 'js/playlists.js' %}"></script>
 <script>
 document.getElementById('playlistFilter').addEventListener('input', function(e) {
     const filter = e.target.value.toLowerCase();

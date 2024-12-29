@@ -1,0 +1,38 @@
+<div class="modal fade" id="playlistManagerModal" tabindex="-1" aria-labelledby="playlistManagerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="playlistManagerModalLabel">Manage Playlist Managers</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="playlistManagerForm" class="playlist-manager-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="managerUserId" class="form-label">Add Manager by Spotify ID</label>
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="managerUserId" 
+                                   name="user_id" 
+                                   placeholder="Enter Spotify User ID"
+                                   required>
+                            <button type="submit" class="btn btn-primary">Add</button>
+                        </div>
+                        <div class="form-text">Enter the Spotify ID of the user you want to add as a manager</div>
+                    </div>
+                    <input type="hidden" id="playlistId" name="playlist_id">
+                </form>
+
+                <h6 class="mb-3">Current Managers</h6>
+                <div id="managerList">
+                    <!-- Manager list will be loaded here -->
+                    {% include "components/manager_list.html" %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

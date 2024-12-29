@@ -3,59 +3,134 @@
 
 {% block title %}{{ playlist.name }} - PyJams{% endblock %}
 
-{% block body_class %}playlist-page{% endblock %}
-
 {% block content %}
-<div class="playlist-view">
-    <div class="playlist-header">
-        <div class="playlist-info">
-            <h1>{{ playlist.name }}</h1>
-            <p class="playlist-description">{{ playlist.description }}</p>
-            <div class="playlist-stats">
+<div class="playlist-view container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <img src="{{ playlist.images.0.url }}" alt="{{ playlist.name }}" class="img-fluid rounded shadow">
+        </div>
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h1 class="mb-2">{{ playlist.name }}</h1>
+                    <p class="text-muted">{{ playlist.description }}</p>
+                </div>
+                {% if is_manager %}
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="showSearchModal()">
+                        <i class="fas fa-plus me-2"></i>Add Tracks
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="showManagerModal()">
+                        <i class="fas fa-users me-2"></i>Managers
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="row mt-4">
                 {% for stat_name, stat_value in stats.items %}
-                <div class="stat-item">
-                    <span class="stat-value">{{ stat_value }}</span>
-                    <span class="stat-label">{{ stat_name }}</span>
+                <div class="col-md-4">
+                    <div class="card bg-dark text-light">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ stat_name|title }}</h5>
+                            <p class="card-text display-6">{{ stat_value }}</p>
+                        </div>
+                    </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-        {% if is_manager %}
-        <div class="playlist-actions">
-            <button class="btn btn-primary" onclick="showSearchModal()">Add Tracks</button>
-        </div>
-        {% endif %}
     </div>
 
-    <div class="tracks-list">
-        {% for track in tracks %}
-        <div class="track-row" data-track-id="{{ track.track.id }}">
-            <!-- Track information -->
-            <div class="track-info">
-                <img src="{{ track.track.album.images.0.url }}" alt="Album art" class="track-thumb">
-                <div class="track-text">
-                    <span class="track-name">{{ track.track.name }}</span>
-                    <span class="track-artist">{{ track.track.artists.0.name }}</span>
-                </div>
-            </div>
-            {% if is_manager %}
-            <div class="track-actions">
-                <button class="preview-btn" onclick="previewTrack('{{ track.track.id }}')">
-                    <i class="fas fa-play"></i>
-                </button>
-                <button class="remove-btn" onclick="removeTrack('{{ track.track.id }}')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            {% endif %}
+    <!-- Tracks Section -->
+    <div class="card bg-dark">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#tracks">
+                        <i class="fas fa-music me-2"></i>Tracks
+                    </a>
+                </li>
+                {% if is_manager %}
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#history">
+                        <i class="fas fa-history me-2"></i>History
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#settings">
+                        <i class="fas fa-cog me-2"></i>Settings
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
         </div>
-        {% endfor %}
+        <div class="card-body">
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="tracks">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px">#</th>
+                                    <th>Title</th>
+                                    <th>Artist</th>
+                                    <th>Album</th>
+                                    <th style="width: 100px">Duration</th>
+                                    {% if is_manager %}
+                                    <th style="width: 100px">Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for track in tracks %}
+                                <tr class="track-row" data-track-id="{{ track.track.id }}">
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ track.track.name }}</td>
+                                    <td>{{ track.track.artists.0.name }}</td>
+                                    <td>{{ track.track.album.name }}</td>
+                                    <td>{{ track.track.duration_ms|divide:60000|floatformat:0 }}:{{ track.track.duration_ms|divide:1000|modulo:60|stringformat:"02d" }}</td>
+                                    {% if is_manager %}
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            {% if track.track.preview_url %}
+                                            <button class="btn btn-outline-primary" onclick="previewTrack('{{ track.track.id }}')">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                            {% endif %}
+                                            <button class="btn btn-outline-danger" onclick="removeTrack('{{ track.track.id }}')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% if is_manager %}
+                <div class="tab-pane fade" id="history">
+                    <p class="text-muted">Track history coming soon...</p>
+                </div>
+                <div class="tab-pane fade" id="settings">
+                    <p class="text-muted">Playlist settings coming soon...</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>
 
 {% block modals %}
     {% include "components/track_modal.html" %}
     {% include "components/search_modal.html" %}
+    {% if is_manager %}
+    {% include "components/manager_modal.html" %}
+    {% endif %}
 {% endblock %}
 {% endblock %}
 

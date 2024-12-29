@@ -1,20 +1,44 @@
+from collections.abc import Callable
+from functools import wraps
+from typing import Any, ParamSpec, TypeVar
+
 from django.contrib import auth, messages
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from pyjams.models import FeaturedPlaylist, PlaylistManager
+from pyjams.models import FeaturedPlaylist, Permission, PlaylistManager
 from pyjams.utils.messages import error, success
 from pyjams.utils.spotify import (
-    SpotifySessionManager,
     get_playlist_info,
     get_spotify,
     handle_spotify_callback,
     initiate_spotify_auth,
 )
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def require_permissions(*permissions: Permission) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Decorator to check if user has all required permissions."""
+
+    def decorator(view_func: Callable[P, R]) -> Callable[P, R]:
+        @wraps(view_func)
+        def _wrapped_view(*args: P.args, **kwargs: P.kwargs) -> R:
+            request = args[0] if args else kwargs.get("request")
+            if not request or not request.user.is_authenticated:
+                return redirect("pyjams:spotify_login")
+            if not request.user.has_permissions(*permissions):
+                return HttpResponseForbidden("Insufficient permissions")
+
+            return view_func(*args, **kwargs)
+
+        return _wrapped_view
+
+    return decorator
 
 
 @require_http_methods(["GET"])
@@ -24,6 +48,9 @@ def index(request: HttpRequest) -> HttpResponse:
     managed_playlists = []
 
     if request.user.is_authenticated:
+        if not request.user.has_permissions(Permission.VIEW):
+            return HttpResponseForbidden("Insufficient permissions")
+
         try:
             _ = get_spotify(request.session)
             playlists = FeaturedPlaylist.objects.filter(is_active=True)
@@ -47,7 +74,7 @@ def index(request: HttpRequest) -> HttpResponse:
     return render(request, "index.html", context)
 
 
-@login_required
+@require_permissions(Permission.VIEW)
 @require_http_methods(["GET"])
 def playlist_details(request: HttpRequest, playlist_id: str) -> HttpResponse:
     spotify = get_spotify(request.session)
@@ -80,39 +107,7 @@ def playlist_details(request: HttpRequest, playlist_id: str) -> HttpResponse:
     )
 
 
-@login_required
-@require_http_methods(["GET"])
-def get_playlists(request: HttpRequest) -> HttpResponse:
-    """View to display user's playlists."""
-    try:
-        manager = SpotifySessionManager(request.session)
-        token = manager.get_token()
-
-        if not token:
-            return redirect("pyjams:spotify_login")
-
-        spotify = get_spotify(request.session)
-        playlists = spotify.current_user_playlists()
-
-        return render(request, "playlists.html", {"playlists": playlists["items"]})
-    except Exception as e:
-        messages.error(request, f"Error fetching playlists: {e!s}")
-        return redirect("pyjams:index")
-
-
-@login_required
-@require_http_methods(["GET"])
-def get_playlist(request: HttpRequest, playlist_id: str) -> JsonResponse:
-    """Get a specific playlist by ID."""
-    try:
-        spotify = get_spotify(request.session)
-        playlist = spotify.playlist(playlist_id)
-        return JsonResponse(playlist)
-    except Exception as e:
-        raise Http404(f"Playlist not found: {e!s}")
-
-
-@login_required
+@require_permissions(Permission.MANAGE_PLAYLIST)
 @require_http_methods(["POST"])
 def create_playlist(request: HttpRequest) -> JsonResponse:
     """Create a new playlist."""
@@ -133,7 +128,7 @@ def create_playlist(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": str(e)}, status=400)
 
 
-@login_required
+@require_permissions(Permission.MANAGE_PLAYLIST)
 @require_http_methods(["POST"])
 def add_track(request: HttpRequest) -> JsonResponse:
     """Add a track to a playlist."""
@@ -158,7 +153,7 @@ def add_track(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": str(e)}, status=400)
 
 
-@login_required
+@require_permissions(Permission.MANAGE_PLAYLIST)
 @require_http_methods(["POST"])
 def remove_track(request: HttpRequest) -> JsonResponse:
     """Remove a track from a playlist."""
@@ -178,7 +173,7 @@ def remove_track(request: HttpRequest) -> JsonResponse:
         return JsonResponse({"error": str(e)}, status=400)
 
 
-@login_required
+@require_permissions(Permission.SEARCH)
 @require_http_methods(["GET"])
 def search_tracks(request: HttpRequest) -> HttpResponse | JsonResponse:
     q = request.GET.get("q", "")
@@ -256,35 +251,103 @@ def spotify_callback(request: HttpRequest) -> HttpResponse:
     return redirect("pyjams:index")
 
 
-@user_passes_test(lambda u: u.is_staff)
-def manage_spotify(request: HttpRequest) -> HttpResponse:
-    """View for managing Spotify playlists."""
+@require_http_methods(["GET"])
+def manage_playlists(request: HttpRequest) -> HttpResponse:
+    """Consolidated view for playlist management."""
+    context: dict[str, Any] = {
+        "site_featured": None,
+        "community_featured": [],
+        "user_playlists": [],
+        "available_playlists": [],
+    }
+
+    if request.user.is_authenticated:
+        try:
+            spotify = get_spotify(request.session)
+
+            # Get featured playlists - viewable by all authenticated users
+            context["site_featured"] = FeaturedPlaylist.get_site_featured()
+            context["community_featured"] = FeaturedPlaylist.get_community_featured()
+
+            # Get user's playlists if they can create featured playlists
+            if request.user.has_permissions(Permission.CREATE_FEATURED):
+                playlists = spotify.current_user_playlists()
+                context["user_playlists"] = playlists["items"]
+
+            # Get all playlists for admin site featuring
+            if request.user.has_permissions(Permission.MANAGE_FEATURED):
+                all_playlists = spotify.current_user_playlists()
+                featured_ids = {p.spotify_id for p in context["community_featured"]}
+                site_featured = context["site_featured"]
+                if site_featured is not None:
+                    featured_ids.add(site_featured.spotify_id)
+                context["available_playlists"] = [p for p in all_playlists["items"] if p["id"] not in featured_ids]
+
+        except Exception as e:
+            error(request, f"Error loading playlists: {e!s}")
+
+    return render(request, "playlists.html", context)
+
+
+@require_permissions(Permission.CREATE_FEATURED)
+@require_http_methods(["POST"])
+def feature_community_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
+    """Feature a playlist in the community section."""
     try:
         spotify = get_spotify(request.session)
+        playlist = spotify.playlist(playlist_id)
 
-        # Get current user's playlists
-        playlists = spotify.current_user_playlists()
+        # Check if user already has a featured playlist
+        if FeaturedPlaylist.objects.filter(creator=request.user, featured_type="community", is_active=True).exists():
+            error(request, "You already have a featured playlist")
+            return redirect("pyjams:playlists")
 
-        # Get currently featured playlist
-        featured = FeaturedPlaylist.objects.filter(is_active=True).first()
-
-        # Filter out already featured playlist from available ones
-        available_playlists = [p for p in playlists["items"] if not (featured and p["id"] == featured.spotify_id)]
-
-        return render(
-            request,
-            "manage_spotify.html",
-            {
-                "featured_playlist": featured,
-                "available_playlists": available_playlists,
-            },
+        FeaturedPlaylist.objects.create(
+            spotify_id=playlist_id,
+            name=playlist["name"],
+            description=playlist.get("description", ""),
+            image_url=playlist["images"][0]["url"] if playlist["images"] else None,
+            featured_type="community",
+            creator=request.user,
+            is_active=True,
         )
+        success(request, f"'{playlist['name']}' is now featured in the community!")
     except Exception as e:
-        error(request, f"Error accessing Spotify: {e!s}")
-        return redirect("pyjams:index")
+        error(request, f"Failed to feature playlist: {e!s}")
+
+    return redirect("pyjams:playlists")
 
 
-@user_passes_test(lambda u: u.is_staff)
+@require_permissions(Permission.MANAGE_FEATURED)
+@require_http_methods(["POST"])
+def feature_site_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
+    """Set the site-wide featured playlist."""
+    try:
+        # Deactivate current site featured playlist
+        FeaturedPlaylist.objects.filter(featured_type="site", is_active=True).update(
+            is_active=False, unfeatured_date=timezone.now()
+        )
+
+        spotify = get_spotify(request.session)
+        playlist = spotify.playlist(playlist_id)
+
+        FeaturedPlaylist.objects.create(
+            spotify_id=playlist_id,
+            name=playlist["name"],
+            description=playlist.get("description", ""),
+            image_url=playlist["images"][0]["url"] if playlist["images"] else None,
+            featured_type="site",
+            creator=request.user,
+            is_active=True,
+        )
+        success(request, f"'{playlist['name']}' is now the site featured playlist!")
+    except Exception as e:
+        error(request, f"Failed to feature playlist: {e!s}")
+
+    return redirect("pyjams:playlists")
+
+
+@require_permissions(Permission.ADMIN)
 @require_http_methods(["POST"])
 def feature_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
     """Set a playlist as featured."""
@@ -312,7 +375,7 @@ def feature_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
     return redirect("pyjams:manage_spotify")
 
 
-@user_passes_test(lambda u: u.is_staff)
+@require_permissions(Permission.ADMIN)
 @require_http_methods(["POST"])
 def unfeature_playlist(request: HttpRequest, playlist_id: int) -> HttpResponse:
     """Remove a playlist from featured status."""
@@ -329,3 +392,46 @@ def unfeature_playlist(request: HttpRequest, playlist_id: int) -> HttpResponse:
         error(request, f"Error unfeaturing playlist: {e!s}")
 
     return redirect("pyjams:manage_spotify")
+
+
+@require_permissions(Permission.MANAGE_USERS)
+@require_http_methods(["POST"])
+def add_playlist_manager(request: HttpRequest, playlist_id: int) -> JsonResponse:
+    """Add a new manager to a playlist."""
+    user_id = request.POST.get("user_id")
+    if not user_id:
+        return JsonResponse({"error": "User ID is required"}, status=400)
+
+    try:
+        playlist = FeaturedPlaylist.objects.get(id=playlist_id, is_active=True)
+        success, message = PlaylistManager.add_manager(playlist.id, user_id)
+        if success:
+            return JsonResponse({"message": message})
+        return JsonResponse({"error": message}, status=400)
+    except FeaturedPlaylist.DoesNotExist:
+        return JsonResponse({"error": "Playlist not found"}, status=404)
+
+
+@require_permissions(Permission.MANAGE_USERS)
+@require_http_methods(["POST"])
+def remove_playlist_manager(request: HttpRequest, playlist_id: int) -> JsonResponse:
+    """Remove a manager from a playlist."""
+    user_id = request.POST.get("user_id")
+    if not user_id:
+        return JsonResponse({"error": "User ID is required"}, status=400)
+
+    success, message = PlaylistManager.remove_manager(playlist_id, user_id)
+    if success:
+        return JsonResponse({"message": message})
+    return JsonResponse({"error": message}, status=400)
+
+
+@require_permissions(Permission.MANAGE_USERS)
+@require_http_methods(["GET"])
+def get_playlist_managers(request: HttpRequest, playlist_id: int) -> JsonResponse:
+    """Get all managers for a playlist."""
+    try:
+        managers = PlaylistManager.get_active_managers(playlist_id)
+        return JsonResponse({"managers": [{"user_id": m.user_id, "added_date": m.added_date} for m in managers]})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
