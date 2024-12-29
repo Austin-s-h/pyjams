@@ -286,7 +286,7 @@ def manage_playlists(request: HttpRequest) -> HttpResponse:
         except Exception as e:
             error(request, f"Error loading playlists: {e!s}")
 
-    return render(request, "playlists.html", context)
+    return render(request, "manage_playlists.html", context)
 
 
 @require_permissions(Permission.CREATE_FEATURED)

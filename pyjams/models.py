@@ -1,8 +1,10 @@
 from enum import Enum, Flag, auto
-from typing import ClassVar, Optional
+from typing import Any, ClassVar, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 class Permission(Flag):
@@ -115,7 +117,7 @@ class FeaturedPlaylist(models.Model):
     is_visible = models.BooleanField(default=True)
     contribution_rules = models.JSONField(default=dict)
     managers = models.ManyToManyField(User, through="PlaylistManager", related_name="managed_featured_playlists")
-    featured_date = models.DateTimeField(auto_now_add=True)
+    featured_date = models.DateTimeField(default=timezone.now)
     unfeatured_date = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -126,22 +128,51 @@ class FeaturedPlaylist(models.Model):
                 name="unique_active_site_featured",
             )
         ]
+        ordering: ClassVar[list[str]] = ["-featured_date"]
 
     def __str__(self) -> str:
-        return self.name
+        return f"{self.name} ({self.get_featured_type_display()})"
 
-    def user_can_manage(self, user: User) -> bool:
-        if user.is_admin or user.id == self.creator.id:
-            return True
-        return self.managers_through.filter(user=user, is_active=True).exists()
+    def clean(self) -> None:
+        """Validate playlist type and status."""
+        super().clean()
+        if self.featured_type == "site" and self.is_active:
+            # Check if another site featured playlist exists
+            existing = FeaturedPlaylist.objects.filter(featured_type="site", is_active=True).exclude(pk=self.pk)
+            if existing.exists():
+                raise ValidationError("Only one active site featured playlist allowed")
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Custom save to handle validation and status changes."""
+        self.clean()
+        if not self.is_active and not self.unfeatured_date:
+            self.unfeatured_date = timezone.now()
+        super().save(*args, **kwargs)
+
+    @property
+    def is_site_featured(self) -> bool:
+        """Check if this is the site featured playlist."""
+        return self.featured_type == "site" and self.is_active
+
+    @property
+    def is_community_featured(self) -> bool:
+        """Check if this is a community featured playlist."""
+        return self.featured_type == "community" and self.is_active
 
     @classmethod
     def get_site_featured(cls) -> Optional["FeaturedPlaylist"]:
+        """Get the current site featured playlist."""
         return cls.objects.filter(featured_type="site", is_active=True).first()
 
     @classmethod
     def get_community_featured(cls) -> models.QuerySet["FeaturedPlaylist"]:
-        return cls.objects.filter(featured_type="community", is_active=True)
+        """Get all active community featured playlists."""
+        return cls.objects.filter(featured_type="community", is_active=True).select_related("creator")
+
+    @classmethod
+    def user_has_featured(cls, user: User) -> bool:
+        """Check if user already has a featured community playlist."""
+        return cls.objects.filter(creator=user, featured_type="community", is_active=True).exists()
 
 
 class PlaylistManager(models.Model):
