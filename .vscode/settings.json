@@ -13,11 +13,14 @@
     "python.analysis.autoImportCompletions": true,
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.typeCheckingMode": "strict",
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingTypeStubs": "none"
+    },
     // Mypy settings
     "mypy.enabled": true,
     "mypy.dmypyExecutable": ".venv/bin/dmypy",
     "mypy.runUsingActiveInterpreter": true,
-    "mypy.configFile": "${workspaceFolder}/pyproject.toml",
+    "mypy.configFile": "pyproject.toml",
     // Linting and testing
     "ruff.lint.args": [
         "--config=${workspaceFolder}/pyproject.toml"

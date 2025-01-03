@@ -38,27 +38,40 @@ pyjams/
 └── pyproject.toml       # Project dependencies and config
 ```
 
-## Development Setup
+## Setup your own 
 
-To deploy your own version of pyjams that you administrate, you must create a Spotify Developer account and retrieve some credentials.
+To deploy your own version of pyjams that you administrate, you must create a Spotify Developer account and retrieve some credentials. Additionally, you must log in with heroku and create an application. Please follow this guide on [Heroku](https://devcenter.heroku.com/articles/getting-started-with-python?singlepage=true)
+
 1. Clone the repository:
    ```bash
    git clone https://github.com/Austin-s-h/pyjams.git
    cd pyjams
    ```
 
-2. Set up environment variables:
+2. System Dependencies:
+   Tested on WSL2 (Ubuntu)
    ```bash
-   cp .env.example .env
-   # Edit .env with your Spotify API credentials
+   # uv https://docs.astral.sh/uv/
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   # heroku cli https://devcenter.heroku.com/articles/heroku-cli
+   curl https://cli-assets.heroku.com/install.sh | sh
+   # Create your own application, add postgres addon
+   heroku create
+   heroku addons:create heroku-postgresql:essential-0
    ```
 
-3. Install dependencies:
+3. Virtual Environment:
    ```bash
    uv venv
    source .venv/bin/activate
    uv sync --all-extras
    ```
+
+4. Setup Environment Variables and save with heroku config
+   ```bash
+   cp .env.example .env
+   ```
+
 
 4. Run migrations:
    ```bash

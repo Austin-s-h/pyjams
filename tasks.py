@@ -1,10 +1,10 @@
 from pathlib import Path
 
-from invoke import task
+from invoke import Context, task
 
 
 @task
-def clean(ctx):
+def clean(ctx: Context):
     """Remove build artifacts."""
     ctx.run("rm -rf dist/")
     ctx.run("rm -rf build/")
@@ -12,7 +12,7 @@ def clean(ctx):
 
 
 @task
-def lint(ctx):
+def lint(ctx: Context):
     """Run code quality checks."""
     ctx.run("ruff check .")
     ctx.run("ruff format .")
@@ -20,68 +20,68 @@ def lint(ctx):
 
 
 @task
-def test(ctx):
+def test(ctx: Context):
     """Run tests."""
     ctx.run("pytest")
 
 
 @task
-def verify(ctx):
+def verify(ctx: Context):
     """Run all checks before deployment."""
     lint(ctx)
     test(ctx)
 
 
 @task
-def install(ctx):
+def install(ctx: Context):
     """Install dependencies using uv."""
     ctx.run("uv pip install -e .[dev]")
 
 
 @task
-def heroku_login(ctx):
+def heroku_login(ctx: Context):
     """Ensure logged into Heroku CLI."""
     ctx.run("heroku auth:whoami || heroku login")
 
 
 @task
-def configure_env(ctx):
+def configure_env(ctx: Context):
     """Configure Heroku environment variables from .env file"""
     ctx.run("set -o allexport; source .env; set +o allexport")
 
 
 @task
-def migrate(ctx):
+def migrate(ctx: Context):
     """Run database migrations."""
     ctx.run("python manage.py migrate")
 
 
 @task
-def makemigrations(ctx):
+def makemigrations(ctx: Context):
     """Create new migrations based on model changes."""
     ctx.run("python manage.py makemigrations")
 
 
 @task
-def serve(ctx):
+def serve(ctx: Context):
     """Run the development server."""
     ctx.run("heroku local")
 
 
 @task
-def logs(ctx):
+def logs(ctx: Context):
     """Show Heroku logs."""
     ctx.run("heroku logs --tail")
 
 
 @task
-def scale(ctx, dynos=1):
+def scale(ctx: Context, dynos: int = 1):
     """Scale Heroku dynos."""
     ctx.run(f"heroku ps:scale web={dynos}")
 
 
 @task
-def collectstatic(ctx):
+def collectstatic(ctx: Context):
     """Collect static files for production deployment."""
     static_root = Path("staticfiles")
     static_dir = Path("src/pyjams/static")
@@ -101,6 +101,6 @@ def collectstatic(ctx):
 
 
 @task(pre=[verify, migrate, collectstatic])
-def deploy(ctx):
+def deploy(ctx: Context) -> None:
     """Deploy to Heroku with static files and migrations."""
     ctx.run("git push heroku master")

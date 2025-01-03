@@ -18,7 +18,6 @@ app_patterns = [
                     # Core pages
                     path("", views.index, name="index"),
                     path("privacy/", views.privacy, name="privacy"),
-                    path("terms/", views.terms, name="terms"),
                     # Authentication
                     path("auth/spotify/", views.spotify_login, name="spotify_login"),
                     path("callback/", views.spotify_callback, name="spotify_callback"),

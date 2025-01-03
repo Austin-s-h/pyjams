@@ -71,13 +71,6 @@ if IS_HEROKU_APP:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
 
-    # Trusted Hosts
-    ALLOWED_HOSTS = [
-        "pyjams.sansterbioanalytics.com",
-        "pyjams-app-9cff897c521d.herokuapp.com",
-        "www.sansterbioanalytics.com",  # Allow www version for redirect
-    ]
-
     # CSRF Trusted Origins
     CSRF_TRUSTED_ORIGINS = [
         "https://pyjams.sansterbioanalytics.com",
@@ -277,8 +270,9 @@ SPOTIFY_SCOPE = "playlist-modify-public playlist-modify-private user-read-privat
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_SERIALIZER = "django.contrib.sessions.serializers.JSONSerializer"
 SESSION_COOKIE_NAME = "pyjams_sessionid"
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 7  # 1 week
-SESSION_COOKIE_SECURE = IS_HEROKU_APP
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth flow
@@ -288,7 +282,6 @@ SESSION_FALLBACK = True
 SESSION_COOKIE_DOMAIN = None  # Allow all subdomains
 
 # CSRF Settings
-CSRF_COOKIE_SECURE = IS_HEROKU_APP  # True in production
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_TRUSTED_ORIGINS = [

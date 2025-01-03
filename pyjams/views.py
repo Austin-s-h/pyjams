@@ -209,12 +209,6 @@ def privacy(request: HttpRequest) -> HttpResponse:
     return render(request, "privacy.html")
 
 
-@require_http_methods(["GET"])
-def terms(request: HttpRequest) -> HttpResponse:
-    """Render terms of service page."""
-    return render(request, "terms.html")
-
-
 @require_http_methods(["GET", "POST"])
 def logout(request: HttpRequest) -> HttpResponse:
     """Logout user and clear session."""
@@ -251,6 +245,7 @@ def spotify_callback(request: HttpRequest) -> HttpResponse:
     return redirect("pyjams:index")
 
 
+@require_permissions(Permission.VIEW)
 @require_http_methods(["GET"])
 def manage_playlists(request: HttpRequest) -> HttpResponse:
     """Consolidated view for playlist management."""
@@ -264,6 +259,7 @@ def manage_playlists(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
         try:
             spotify = get_spotify(request.session)
+            current_user = spotify.current_user()
 
             # Get featured playlists - viewable by all authenticated users
             context["site_featured"] = FeaturedPlaylist.get_site_featured()
@@ -271,16 +267,16 @@ def manage_playlists(request: HttpRequest) -> HttpResponse:
 
             # Get user's playlists if they can create featured playlists
             if request.user.has_permissions(Permission.CREATE_FEATURED):
-                playlists = spotify.current_user_playlists()
+                playlists = spotify.user_playlists(current_user["id"])
                 context["user_playlists"] = playlists["items"]
 
-            # Get all playlists for admin site featuring
+            # Get available playlists for admins
             if request.user.has_permissions(Permission.MANAGE_FEATURED):
-                all_playlists = spotify.current_user_playlists()
-                featured_ids = {p.spotify_id for p in context["community_featured"]}
-                site_featured = context["site_featured"]
-                if site_featured is not None:
-                    featured_ids.add(site_featured.spotify_id)
+                # Get all playlists from Spotify
+                all_playlists = spotify.user_playlists(current_user["id"])
+                # Get IDs of already featured playlists
+                featured_ids = {p.spotify_id for p in FeaturedPlaylist.objects.filter(is_active=True)}
+                # Filter out already featured playlists
                 context["available_playlists"] = [p for p in all_playlists["items"] if p["id"] not in featured_ids]
 
         except Exception as e:
