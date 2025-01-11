@@ -1,0 +1,39 @@
+<!-- components/search_results.html -->
+{% for track in tracks %}
+<div class="list-group-item bg-dark text-light border-secondary hover-highlight d-flex align-items-center gap-3 p-3">
+    <!-- Album Image -->
+    {% if track.album.image %}
+    <img src="{{ track.album.image }}" alt="{{ track.album.name }}" class="rounded shadow-sm" width="50" height="50">
+    {% else %}
+    <div class="bg-secondary rounded" style="width: 50px; height: 50px;"></div>
+    {% endif %}
+    
+    <!-- Track Details -->
+    <div class="flex-grow-1">
+        <h6 class="mb-1 text-truncate">{{ track.name }}</h6>
+        <small class="text-muted text-truncate d-block">{{ track.artists|join:", " }} • {{ track.album.name }}</small>
+    </div>
+    
+    <!-- Playlist Dropdown -->
+    <div class="dropdown">
+        <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-plus"></i> Add
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end bg-dark border-secondary">
+            {% for playlist in playlists %}
+            <li>
+                <button class="dropdown-item text-light hover-highlight py-2" 
+                        onclick="addTrackToPlaylist('{{ track.id }}', '{{ playlist.id }}')">
+                    <i class="fas fa-music me-2"></i>{{ playlist.name }}
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% empty %}
+<div class="list-group-item bg-dark text-light text-center py-4">
+    <i class="fas fa-search fa-2x mb-3 text-muted"></i>
+    <p class="mb-0">No tracks found</p>
+</div>
+{% endfor %}

@@ -183,6 +183,10 @@ def search_tracks(request: HttpRequest) -> HttpResponse | JsonResponse:
     spotify = get_spotify(request.session)
     results = spotify.search(q=q, type="track", limit=5)
 
+    # Get user's playlists
+    current_user = spotify.current_user()
+    playlists = spotify.user_playlists(current_user["id"])["items"]
+
     tracks = [
         {
             "id": track["id"],
@@ -192,15 +196,15 @@ def search_tracks(request: HttpRequest) -> HttpResponse | JsonResponse:
                 "name": track["album"]["name"],
                 "image": track["album"]["images"][0]["url"] if track["album"]["images"] else None,
             },
-            "duration_ms": track["duration_ms"],
-            "preview_url": track.get("preview_url"),
         }
         for track in results["tracks"]["items"]
     ]
 
+    context = {"tracks": tracks, "playlists": playlists}
+
     if request.headers.get("HX-Request"):
-        return render(request, "components/search_results.html", {"tracks": tracks})
-    return JsonResponse({"tracks": tracks})
+        return render(request, "components/search_results.html", context)
+    return JsonResponse({"tracks": tracks, "playlists": playlists})
 
 
 @require_http_methods(["GET"])
@@ -431,3 +435,39 @@ def get_playlist_managers(request: HttpRequest, playlist_id: int) -> JsonRespons
         return JsonResponse({"managers": [{"user_id": m.user_id, "added_date": m.added_date} for m in managers]})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
+
+
+@require_permissions(Permission.VIEW)
+@require_http_methods(["GET"])
+def search(request: HttpRequest) -> HttpResponse:
+    """Render search page."""
+    playlists = []
+    if request.user.is_authenticated:
+        try:
+            spotify = get_spotify(request.session)
+            current_user = spotify.current_user()
+            playlists = spotify.user_playlists(current_user["id"])["items"]
+        except Exception as e:
+            error(request, f"Error loading playlists: {e!s}")
+
+    return render(request, "search.html", {"playlists": playlists})
+
+
+@require_permissions(Permission.VIEW)
+@require_http_methods(["GET"])
+def profile(request: HttpRequest) -> HttpResponse:
+    """Render user profile page."""
+    try:
+        spotify = get_spotify(request.session)
+        user_profile = spotify.current_user()
+        user_playlists = spotify.current_user_playlists()["items"]
+
+        context = {
+            "profile": user_profile,
+            "playlists": user_playlists,
+        }
+
+        return render(request, "profile.html", context)
+    except Exception as e:
+        error(request, f"Error loading profile: {e!s}")
+        return redirect("pyjams:index")

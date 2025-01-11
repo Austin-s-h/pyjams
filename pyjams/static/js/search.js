@@ -4,6 +4,63 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchSpinner = document.getElementById('searchSpinner');
     let searchTimeout;
 
+    function renderTrackItem(track, playlists) {
+        return `
+            <div class="list-group-item bg-dark text-light border-secondary hover-highlight d-flex align-items-center gap-3 p-3">
+                <!-- Album Image -->
+                ${track.album.image ? 
+                    `<img src="${track.album.image}" alt="${track.album.name}" class="rounded shadow-sm" width="50" height="50">` :
+                    `<div class="bg-secondary rounded" style="width: 50px; height: 50px;"></div>`
+                }
+                
+                <!-- Track Details -->
+                <div class="flex-grow-1">
+                    <h6 class="mb-1 text-truncate">${track.name}</h6>
+                    <small class="text-muted text-truncate d-block">${track.artists.join(', ')} • ${track.album.name}</small>
+                </div>
+                
+                <!-- Playlist Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-success btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end bg-dark border-secondary">
+                        ${playlists.map(playlist => `
+                            <li>
+                                <button class="dropdown-item text-light hover-highlight py-2" 
+                                        onclick="addTrackToPlaylist('${track.id}', '${playlist.id}')">
+                                    <i class="fas fa-music me-2"></i>${playlist.name}
+                                </button>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+    }
+
+    async function addTrackToPlaylist(trackId, playlistId) {
+        try {
+            const response = await fetch(`/playlists/${playlistId}/tracks/add/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ track_id: trackId })
+            });
+            
+            const result = await response.json();
+            if (response.ok) {
+                PyJams.showSuccess('Track added successfully');  // Add success toast
+            } else {
+                throw new Error(result.error || 'Failed to add track');
+            }
+        } catch (error) {
+            PyJams.showError(error.message);  // Add error toast
+        }
+    }
+
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimeout);
         const query = this.value.trim();
@@ -19,80 +76,37 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`);
                 const data = await response.json();
                 
-                searchResults.innerHTML = data.tracks.map(track => `
-                    <div class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">${track.name}</h6>
-                            <small>${track.artists.join(', ')} • ${track.album.name}</small>
-                        </div>
-                        <button class="btn btn-success btn-sm add-track" 
-                                data-track-id="${track.id}">
-                            <i class="fas fa-plus"></i> Add
-                        </button>
-                    </div>
-                `).join('');
+                searchResults.innerHTML = data.tracks.map(track => 
+                    renderTrackItem(track, data.playlists)
+                ).join('');
                 
                 searchResults.style.display = 'block';
                 
-                // Update add track handler
-                document.querySelectorAll('.add-track').forEach(button => {
-                    button.addEventListener('click', async (e) => {
-                        const trackId = e.target.closest('.add-track').dataset.trackId;
-                        
-                        if (!currentPlaylistId) {
-                            // Show playlist selection modal if no playlist is selected
-                            const modal = new bootstrap.Modal(document.getElementById('selectPlaylistModal'));
-                            modal.show();
-                            return;
-                        }
-
-                        try {
-                            const formData = new FormData();
-                            formData.append('track_id', trackId);
-                            formData.append('playlist_id', currentPlaylistId);
-                            
-                            const response = await fetch(`/playlists/${currentPlaylistId}/tracks/add/`, {
-                                method: 'POST',
-                                headers: {
-                                    'X-CSRFToken': PlaylistUtils.getCookie('csrftoken')
-                                },
-                                body: formData
-                            });
-                            
-                            const result = await response.json();
-                            if (response.ok) {
-                                PyJams.showSuccess(result.message);
-                                searchInput.value = '';
-                                searchResults.style.display = 'none';
-                            } else {
-                                PyJams.showError(result.error || 'Error adding track');
-                            }
-                        } catch (error) {
-                            console.error('Error:', error);
-                            PyJams.showError('Error adding track');
-                        }
-                    });
+                // Initialize dropdowns
+                document.querySelectorAll('.dropdown-toggle').forEach(dropdown => {
+                    new bootstrap.Dropdown(dropdown);
                 });
+                
             } catch (error) {
                 console.error('Error:', error);
-                searchResults.innerHTML = '<div class="list-group-item bg-dark text-light">Error searching tracks</div>';
+                searchResults.innerHTML = `
+                    <div class="list-group-item bg-dark text-light text-center py-4">
+                        <i class="fas fa-exclamation-circle fa-2x mb-3 text-danger"></i>
+                        <p class="mb-0">Error searching tracks</p>
+                    </div>`;
             } finally {
                 searchSpinner?.classList.add('d-none');
             }
         }, 300);
     });
 
-    // Hide search results when clicking outside
+    // Make addTrackToPlaylist available globally
+    window.addTrackToPlaylist = addTrackToPlaylist;
+
+    // Hide results when clicking outside
     document.addEventListener('click', function(e) {
         if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
             searchResults.style.display = 'none';
         }
     });
 });
-
-// Add playlist selection handler
-window.selectPlaylist = function(playlistId, playlistName) {
-    currentPlaylistId = playlistId;
-    document.getElementById('selectPlaylistModal').querySelector('.btn-close').click();
-    PyJams.showSuccess(`Selected playlist: ${playlistName}`);
-}

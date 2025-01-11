@@ -1,8 +1,8 @@
 import logging
 from collections.abc import Callable
 
-from django.contrib import messages
 from django.core.exceptions import SuspiciousOperation
+from django.db import transaction
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -16,6 +16,12 @@ class SpotifySessionMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 
+    def _clear_session(self, request: HttpRequest) -> None:
+        try:
+            request.session.flush()
+        except Exception:
+            request.session.clear()
+
     def __call__(self, request: HttpRequest) -> HttpResponse:
         # Skip auth paths to prevent redirect loops
         if request.path.startswith("/auth/spotify") or request.path.startswith("/callback"):
@@ -23,27 +29,35 @@ class SpotifySessionMiddleware:
 
         try:
             if request.user.is_authenticated:
-                try:
-                    manager = SpotifySessionManager(request.session)
-                    token = manager.get_token()
+                manager = SpotifySessionManager(request.session)
 
+                try:
+                    token = manager.get_token()
                     if not token:
-                        raise TokenError("No token found")
+                        logger.warning("No token found in session")
+                        self._clear_session(request)
+                        return redirect(reverse("spotify:login"))
 
                     if manager.is_token_expired(token):
-                        token = manager.refresh_token(token)
-                        request.session.modified = True
+                        # Ensure atomic token refresh
+                        with transaction.atomic():
+                            try:
+                                token = manager.refresh_token(token)
+                                request.session.modified = True
+                                request.session.save()
+                            except Exception as e:
+                                logger.error(f"Token refresh failed: {e!s}")
+                                self._clear_session(request)
+                                return redirect(reverse("spotify:login"))
 
                 except (TokenError, SuspiciousOperation) as e:
-                    logger.warning(f"Token error: {e!s}")
-                    request.session.flush()
-                    messages.warning(request, "Your Spotify session expired. Please log in again.")
-                    return redirect(reverse("pyjams:spotify_login"))
+                    logger.warning(f"Session error: {e!s}")
+                    self._clear_session(request)
+                    return redirect(reverse("spotify:login"))
 
             return self.get_response(request)
 
         except Exception as e:
-            logger.error(f"Middleware error: {e!s}")
-            request.session.flush()
-            messages.error(request, "Session error occurred. Please try logging in again.")
-            return redirect(reverse("pyjams:spotify_login"))
+            logger.error(f"Middleware error: {e!s}", exc_info=True)
+            self._clear_session(request)
+            return redirect(reverse("spotify:login"))

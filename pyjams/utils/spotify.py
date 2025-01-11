@@ -148,24 +148,26 @@ class SpotifySessionManager:
 
 
 def get_spotify_auth(request: HttpRequest | None = None) -> SpotifyOAuth:
-    """Get configured SpotifyOAuth instance.
-
-    Args:
-        request: Optional Django request object for state management
-
-    Returns:
-        SpotifyOAuth: Configured auth instance
-    """
+    """Get configured SpotifyOAuth instance."""
     import secrets
 
-    # Generate/retrieve state parameter
     state = None
-    if request:
-        state = request.session.get("spotify_state")
-        if not state:
+    if request and request.session:
+        if "spotify_state" not in request.session:
             state = secrets.token_urlsafe(32)
             request.session["spotify_state"] = state
+            request.session["state_timestamp"] = int(time.time())
             request.session.modified = True
+        else:
+            # Check state age (5 minute timeout)
+            timestamp = request.session.get("state_timestamp", 0)
+            if int(time.time()) - timestamp > 300:
+                state = secrets.token_urlsafe(32)
+                request.session["spotify_state"] = state
+                request.session["state_timestamp"] = int(time.time())
+                request.session.modified = True
+            else:
+                state = request.session["spotify_state"]
 
     redirect_uri = settings.SPOTIFY_REDIRECT_URI.rstrip("/")
 
@@ -327,18 +329,17 @@ def handle_spotify_callback(request: HttpRequest, code: str, state: str) -> tupl
 
 
 def verify_spotify_state(request: HttpRequest, state: str) -> None:
-    """Verify the state parameter from Spotify OAuth callback.
-
-    Args:
-        request: Django request object
-        state: State parameter from callback
-
-    Raises:
-        TokenError: If state verification fails
-    """
+    """Verify the state parameter from Spotify OAuth callback."""
     stored_state = request.session.get("spotify_state")
+    stored_timestamp = request.session.get("state_timestamp", 0)
+
     if not state or not stored_state or state != stored_state:
         raise TokenError("State verification failed", should_logout=True)
 
+    if int(time.time()) - stored_timestamp > 300:  # 5 minute timeout
+        raise TokenError("State token expired", should_logout=True)
+
+    # Clean up after verification
     del request.session["spotify_state"]
+    del request.session["state_timestamp"]
     request.session.modified = True

@@ -22,6 +22,7 @@ app_patterns = [
                     path("auth/spotify/", views.spotify_login, name="spotify_login"),
                     path("callback/", views.spotify_callback, name="spotify_callback"),
                     path("auth/logout/", views.logout, name="logout"),
+                    path("profile/", views.profile, name="profile"),
                     # Playlists
                     path("playlists/", views.manage_playlists, name="playlists"),
                     path("playlists/create/", views.create_playlist, name="create_playlist"),
@@ -54,6 +55,8 @@ app_patterns = [
                         views.remove_playlist_manager,
                         name="remove_playlist_manager",
                     ),
+                    # Search
+                    path("search/", views.search, name="search"),
                     # Tracks
                     path("playlists/<str:playlist_id>/tracks/add/", views.add_track, name="add_track"),
                     path("playlists/<str:playlist_id>/tracks/remove/", views.remove_track, name="remove_track"),
