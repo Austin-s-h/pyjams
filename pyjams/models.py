@@ -96,7 +96,7 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20,
         choices=[(role.value, role.name) for role in UserRole],
-        default=UserRole.USER.value,  # Changed default from GUEST to USER
+        default=UserRole.USER.value,
     )
 
     class Meta:

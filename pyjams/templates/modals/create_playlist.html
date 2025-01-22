@@ -1,30 +1,60 @@
-<div class="modal fade" id="createPlaylistModal" tabindex="-1" aria-labelledby="createPlaylistModalLabel" aria-hidden="true">
+<!-- Create Playlist Modal -->
+<div class="modal fade" id="createPlaylistModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-light border-secondary">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="createPlaylistModalLabel">Create Public Playlist</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">Feature Playlist</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form id="createPlaylistForm" class="modal-body" method="POST">
-                <div class="mb-3">
-                    <label for="playlistSelect" class="form-label">Select Playlist</label>
-                    <select class="form-select bg-dark text-light border-secondary" id="playlistSelect" name="playlist_id" required>
-                        <option value="">Choose a playlist...</option>
-                        {% for playlist in playlists %}
-                        <option value="{{ playlist.id }}">{{ playlist.name }}</option>
-                        {% endfor %}
-                    </select>
+            <form id="createPlaylistForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="playlist_id">
+                    
+                    <!-- Search Section -->
+                    <div class="mb-3">
+                        <label for="playlistSearch" class="form-label">Search Your Playlists</label>
+                        <div class="input-group">
+                            <input type="text" 
+                                   class="form-control bg-dark text-light border-secondary" 
+                                   id="playlistSearch" 
+                                   placeholder="Type to search playlists...">
+                            <span class="input-group-text bg-dark border-secondary">
+                                <div id="searchSpinner" class="spinner-border spinner-border-sm d-none"></div>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Results Section -->
+                    <div id="searchResults" class="border border-secondary rounded mb-3 search-results">
+                        <div class="p-3 text-muted text-center">
+                            <i class="fas fa-music me-2"></i>Loading your playlists...
+                        </div>
+                    </div>
+
+                    <!-- Selection Display -->
+                    <div class="mb-3">
+                        <label class="form-label">Selected Playlist</label>
+                        <div id="selectedPlaylist" class="p-2 border border-secondary rounded bg-dark text-light">
+                            <span class="text-muted">No playlist selected</span>
+                        </div>
+                    </div>
+
+                    <!-- Feature Type -->
+                    <div class="mb-3">
+                        <label for="feature_type" class="form-label">Feature Type</label>
+                        <select name="feature_type" class="form-select bg-dark text-light border-secondary" required>
+                            <option value="">Choose feature type...</option>
+                            <option value="community">Community Featured</option>
+                            {% if user.has_permissions.MANAGE_FEATURED %}
+                            <option value="site">Site Featured</option>
+                            {% endif %}
+                        </select>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="description" class="form-label">Description (optional)</label>
-                    <textarea class="form-control bg-dark text-light border-secondary" 
-                            id="description" 
-                            name="description" 
-                            rows="3"></textarea>
-                </div>
-                <div class="modal-footer border-secondary px-0 pb-0">
+                <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create</button>
+                    <button type="submit" class="btn btn-primary" disabled>Feature Playlist</button>
                 </div>
             </form>
         </div>
@@ -32,31 +62,11 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const createPlaylistForm = document.getElementById('createPlaylistForm');
-    if (createPlaylistForm) {
-        createPlaylistForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            
-            try {
-                const response = await fetch('/admin/create_public_playlist', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                if (response.ok) {
-                    alert(data.message);
-                    location.reload();
-                } else {
-                    alert(data.detail || 'Error creating playlist');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error creating playlist');
-            }
-        });
-    }
+// Initialize playlist creation functionality when document loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Create an instance of the playlist manager
+    const playlistCreator = new CreatePlaylist();
 });
+
+// PlaylistManager class definition moved to playlists.js
 </script>

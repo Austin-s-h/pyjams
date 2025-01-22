@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-
+{% csrf_token %}
 {% block title %}Search - PyJams{% endblock %}
 
 {% block content %}
@@ -44,6 +44,14 @@
                     </li>
                     {% endfor %}
                 </ul>
+                <div class="dropdown">
+                    {% for playlist in playlists %}
+                    <button class="dropdown-item text-light hover-highlight py-2" 
+                            onclick="addTrackToPlaylist('{{ track.id }}', '{{ playlist.id }}')">
+                        <i class="fas fa-music me-2"></i>{{ playlist.name }}
+                    </button>
+                    {% endfor %}
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

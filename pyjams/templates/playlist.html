@@ -91,7 +91,7 @@
                                     <td>{{ track.track.name }}</td>
                                     <td>{{ track.track.artists.0.name }}</td>
                                     <td>{{ track.track.album.name }}</td>
-                                    <td>{{ track.track.duration_ms|divide:60000|floatformat:0 }}:{{ track.track.duration_ms|divide:1000|modulo:60|stringformat:"02d" }}</td>
+                                    <td>{{ track.track.duration_formatted }}</td>
                                     {% if is_manager %}
                                     <td>
                                         <div class="btn-group btn-group-sm">

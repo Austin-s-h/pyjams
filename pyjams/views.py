@@ -83,9 +83,17 @@ def playlist_details(request: HttpRequest, playlist_id: str) -> HttpResponse:
     playlist, tracks = get_playlist_info(spotify, playlist_id)
     public_playlist = FeaturedPlaylist.objects.get(spotify_id=playlist_id)
 
-    managers = PlaylistManager.get_active_managers(public_playlist.id)
+    # Format track durations
+    for track in tracks["items"]:
+        if track["track"]:
+            duration_ms = track["track"]["duration_ms"]
+            minutes = duration_ms // 60000
+            seconds = (duration_ms % 60000) // 1000
+            track["track"]["duration_formatted"] = f"{minutes}:{seconds:02d}"
 
+    managers = PlaylistManager.get_active_managers(public_playlist.id)
     total_ms = sum(item["track"]["duration_ms"] for item in tracks["items"] if item["track"])
+
     stats = {
         "followers": playlist["followers"]["total"],
         "track_count": len(tracks["items"]),
@@ -265,26 +273,20 @@ def manage_playlists(request: HttpRequest) -> HttpResponse:
             spotify = get_spotify(request.session)
             current_user = spotify.current_user()
 
-            # Get featured playlists - viewable by all authenticated users
+            # Get featured playlists
             context["site_featured"] = FeaturedPlaylist.get_site_featured()
             context["community_featured"] = FeaturedPlaylist.get_community_featured()
 
-            # Get user's playlists if they can create featured playlists
             if request.user.has_permissions(Permission.CREATE_FEATURED):
                 playlists = spotify.user_playlists(current_user["id"])
                 context["user_playlists"] = playlists["items"]
 
-            # Get available playlists for admins
-            if request.user.has_permissions(Permission.MANAGE_FEATURED):
-                # Get all playlists from Spotify
-                all_playlists = spotify.user_playlists(current_user["id"])
-                # Get IDs of already featured playlists
-                featured_ids = {p.spotify_id for p in FeaturedPlaylist.objects.filter(is_active=True)}
-                # Filter out already featured playlists
-                context["available_playlists"] = [p for p in all_playlists["items"] if p["id"] not in featured_ids]
+                if request.user.has_permissions(Permission.MANAGE_FEATURED):
+                    featured_ids = {p.spotify_id for p in FeaturedPlaylist.objects.filter(is_active=True)}
+                    context["available_playlists"] = [p for p in playlists["items"] if p["id"] not in featured_ids]
 
         except Exception as e:
-            error(request, f"Error loading playlists: {e!s}")
+            messages.error(request, f"Failed to load playlists: {e!s}")
 
     return render(request, "manage_playlists.html", context)
 
@@ -471,3 +473,44 @@ def profile(request: HttpRequest) -> HttpResponse:
     except Exception as e:
         error(request, f"Error loading profile: {e!s}")
         return redirect("pyjams:index")
+
+
+@require_permissions(Permission.VIEW)
+@require_http_methods(["GET"])
+def search_playlists(request: HttpRequest) -> JsonResponse:
+    """Search for playlists and get recent playlists.
+
+    Returns top 5 user playlists when no query is provided.
+    """
+    q = request.GET.get("q", "").strip()
+    spotify = get_spotify(request.session)
+
+    try:
+        # Get current user's playlists
+        current_user = spotify.current_user()
+        # Always get top 5 recent playlists
+        user_playlists = spotify.user_playlists(current_user["id"], limit=5)
+
+        def format_playlist(p):
+            return {
+                "id": p["id"],
+                "name": p["name"],
+                "description": p.get("description", ""),
+                "image_url": p["images"][0]["url"] if p["images"] else None,
+                "tracks_total": p["tracks"]["total"],
+                "owner": p["owner"]["display_name"],
+                "is_public": p["public"],
+            }
+
+        # Filter playlists if search query present
+        playlists = user_playlists["items"]
+        if len(q) >= 2:
+            playlists = [p for p in playlists if q.lower() in p["name"].lower()]
+
+        search_results = [format_playlist(p) for p in playlists]
+
+        return JsonResponse({"data": {"search_results": search_results}})
+
+    except Exception as e:
+        error(request, f"Error searching playlists: {e!s}")
+        return JsonResponse({"error": str(e)}, status=400)

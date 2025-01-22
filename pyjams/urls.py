@@ -26,6 +26,7 @@ app_patterns = [
                     # Playlists
                     path("playlists/", views.manage_playlists, name="playlists"),
                     path("playlists/create/", views.create_playlist, name="create_playlist"),
+                    path("playlists/search/", views.search_playlists, name="search_playlists"),
                     path("playlists/<str:playlist_id>/", views.playlist_details, name="playlist_details"),
                     # Featured playlists
                     path(

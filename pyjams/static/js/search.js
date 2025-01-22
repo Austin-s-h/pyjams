@@ -44,20 +44,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(`/playlists/${playlistId}/tracks/add/`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
                 },
-                body: JSON.stringify({ track_id: trackId })
+                body: `track_id=${trackId}&playlist_id=${playlistId}`
             });
             
-            const result = await response.json();
+            const data = await response.json();
             if (response.ok) {
-                PyJams.showSuccess('Track added successfully');  // Add success toast
+                PyJams.showSuccess(data.message);
             } else {
-                throw new Error(result.error || 'Failed to add track');
+                throw new Error(data.error || 'Failed to add track');
             }
         } catch (error) {
-            PyJams.showError(error.message);  // Add error toast
+            PyJams.showError(error.message);
         }
     }
 
