@@ -3,6 +3,10 @@
 
 {% block title %}{{ playlist.name }} - PyJams{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/styles.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="playlist-view container-fluid py-4">
     <!-- Header Section -->
@@ -135,5 +139,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/playlist.js' %}"></script>
+<script src="{% static 'js/playlists.js' %}"></script>
 {% endblock %}
