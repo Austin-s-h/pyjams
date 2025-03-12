@@ -35,6 +35,75 @@ const PlaylistUtils = {
             console.error('Fetch error:', error);
             throw error;
         }
+    },
+
+    showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-bg-${type} border-0 fade show`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        const toastContainer = document.querySelector('.toast-container') || document.createElement('div');
+        if (!document.querySelector('.toast-container')) {
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
+        
+        toastContainer.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+        bsToast.show();
+        
+        // Remove toast after it's hidden
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+    },
+
+    // Consolidated loading state management
+    setButtonLoading(button, isLoading, loadingText, originalText, iconClass = 'fa-spinner fa-spin') {
+        if (!button) return;
+        
+        button.disabled = isLoading;
+        if (isLoading) {
+            button.dataset.originalHtml = button.innerHTML;
+            button.innerHTML = `<i class="fas ${iconClass} me-1"></i>${loadingText || 'Loading...'}`;
+        } else {
+            button.innerHTML = originalText || button.dataset.originalHtml || button.innerHTML;
+            delete button.dataset.originalHtml;
+        }
+    }
+};
+
+// Expose common utilities globally
+window.PyJams = {
+    showSuccess: (message) => PlaylistUtils.showToast(message, 'success'),
+    showError: (message) => PlaylistUtils.showToast(message, 'danger'),
+    showWarning: (message) => PlaylistUtils.showToast(message, 'warning'),
+    
+    // Debounce helper function
+    debounce: function(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 };
 
@@ -44,6 +113,7 @@ class PlaylistManager {
         this.modal = document.getElementById('playlistManagerModal');
         this.form = document.getElementById('playlistManagerForm');
         this.managerList = document.getElementById('managerList');
+        this.loadingStates = {};
         this.setupEventListeners();
     }
 
@@ -85,10 +155,24 @@ class PlaylistManager {
                 }
             });
         }
+
+        // Add event listener for refresh button if it exists
+        const refreshBtn = document.getElementById('refreshManagersBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                const playlistId = this.modal.querySelector('#playlistId').value;
+                this.loadManagers(playlistId);
+            });
+        }
     }
 
     async loadManagers(playlistId) {
+        if (this.loadingStates[playlistId]) return;
+        
         try {
+            this.loadingStates[playlistId] = true;
+            this.setLoadingState(true);
+            
             const data = await PlaylistUtils.fetchWithError(
                 `/manage/playlist/${playlistId}/managers/`
             );
@@ -96,7 +180,58 @@ class PlaylistManager {
                 this.managerList.innerHTML = data.html;
             }
         } catch (error) {
-            PyJams.showError('Failed to load managers');
+            PlaylistUtils.showToast('Failed to load managers', 'danger');
+        } finally {
+            this.loadingStates[playlistId] = false;
+            this.setLoadingState(false);
+        }
+    }
+    
+    setLoadingState(isLoading) {
+        const refreshBtn = document.getElementById('refreshManagersBtn');
+        if (refreshBtn) {
+            refreshBtn.disabled = isLoading;
+            refreshBtn.innerHTML = isLoading ? 
+                '<i class="fas fa-spinner fa-spin"></i>' : 
+                '<i class="fas fa-sync-alt"></i>';
+        }
+        
+        if (this.managerList && isLoading && this.managerList.children.length === 0) {
+            this.managerList.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading managers...</p>
+                </div>
+            `;
+        }
+    }
+
+    async removeManager(playlistId, userId) {
+        if (this.loadingStates[`remove-${userId}`]) return;
+        
+        try {
+            this.loadingStates[`remove-${userId}`] = true;
+            const button = document.querySelector(`.remove-manager-btn[data-user-id="${userId}"]`);
+            if (button) {
+                const originalHtml = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                button.disabled = true;
+            }
+            
+            const data = await PlaylistUtils.fetchWithError(
+                `/manage/playlist/${playlistId}/managers/remove/${userId}/`,
+                { method: 'POST' }
+            );
+            
+            PlaylistUtils.showToast(data.message || 'Manager removed successfully');
+            this.loadManagers(playlistId);
+            
+        } catch (error) {
+            PlaylistUtils.showToast(error.message || 'Failed to remove manager', 'danger');
+        } finally {
+            this.loadingStates[`remove-${userId}`] = false;
         }
     }
 }
@@ -110,6 +245,8 @@ class CreatePlaylist {
         this.selectedDisplay = document.getElementById('selectedPlaylist');
         this.submitButton = document.getElementById('featureButton');
         this.searchSpinner = document.getElementById('searchSpinner');
+        this.isLoading = false;
+        this.loadedOnce = false;
         
         if (this.form) {
             this.init();
@@ -121,31 +258,54 @@ class CreatePlaylist {
     init() {
         this.setupSearchHandler();
         this.setupFormHandler();
+        this.setupRefreshButton();
+    }
+
+    setupRefreshButton() {
+        const refreshBtn = document.getElementById('refreshPlaylistsBtn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.refreshPlaylists());
+        }
+    }
+
+    async refreshPlaylists() {
+        if (this.isLoading) return;
+        
+        this.searchInput.value = '';
+        await this.loadRecentPlaylists(true);
     }
 
     setupSearchHandler() {
-        this.searchInput?.addEventListener('input', debounce(async (e) => {
-            const query = e.target.value.trim();
-            
-            // Clear results if query too short
-            if (query.length < 2) {
-                this.showDefaultResults();
-                return;
-            }
+        this.searchInput?.addEventListener('input', 
+            PyJams.debounce(async (e) => {
+                const query = e.target.value.trim();
+                
+                // Clear results if query is empty or too short
+                if (!query || query.length < 2) {
+                    if (query.length === 0) {
+                        // If the search is cleared, reload recent playlists
+                        this.loadRecentPlaylists();
+                    } else {
+                        // If query is just too short, show loading state
+                        this.showDefaultResults();
+                    }
+                    return;
+                }
 
-            this.setSearchLoading(true);
-            try {
-                await this.searchPlaylists(query);
-            } finally {
-                this.setSearchLoading(false);
-            }
-        }, 300));
+                this.setSearchLoading(true);
+                try {
+                    await this.searchPlaylists(query);
+                } finally {
+                    this.setSearchLoading(false);
+                }
+            }, 300)
+        );
     }
 
     async searchPlaylists(query) {
         try {
             const response = await PlaylistUtils.fetchWithError(
-                `/playlists/search?q=${encodeURIComponent(query)}`
+                `/playlists/search?q=${encodeURIComponent(query)}&timestamp=${Date.now()}`
             );
             this.displayResults(response.data.search_results);
         } catch (error) {
@@ -158,7 +318,14 @@ class CreatePlaylist {
             this.resultsContainer.innerHTML = `
                 <div class="p-3 text-muted text-center">
                     ${this.searchInput.value ? 'No playlists found' : 'No playlists available'}
+                    <button class="btn btn-sm btn-outline-secondary mt-2" id="retryLoadBtn">
+                        <i class="fas fa-sync-alt me-1"></i>Retry
+                    </button>
                 </div>`;
+                
+            document.getElementById('retryLoadBtn')?.addEventListener('click', () => {
+                this.refreshPlaylists();
+            });
             return;
         }
 
@@ -167,31 +334,88 @@ class CreatePlaylist {
             'Your Recent Playlists';
 
         this.resultsContainer.innerHTML = `
-            <div class="p-2 border-bottom border-secondary">
-                <small class="text-muted">${heading}</small>
-            </div>
-            ${playlists.map(playlist => `
-                <div class="playlist-result d-flex align-items-center p-2 border-bottom border-secondary hover-highlight cursor-pointer" 
-                     onclick="window.selectPlaylistForFeature('${playlist.id}', '${playlist.name}', '${playlist.image_url}')">
-                    <img src="${playlist.image_url || '/static/images/default-playlist.png'}" 
-                         class="me-2 rounded" width="40" height="40" alt="">
-                    <div>
-                        <div class="fw-bold text-truncate">${playlist.name}</div>
-                        <small class="text-muted">${playlist.tracks_total} tracks</small>
+            <div class="playlist-container">
+                <div class="results-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">${heading}</small>
+                        ${!this.searchInput.value ? `
+                        <button class="btn btn-sm btn-link py-0 px-1" id="refreshPlaylistsBtn" title="Refresh playlists">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>` : ''}
                     </div>
                 </div>
-            `).join('')}`;
+                <div class="scrollable-container">
+                    ${playlists.map(playlist => `
+                        <div class="playlist-result d-flex align-items-center p-2 border-bottom border-secondary hover-highlight cursor-pointer" 
+                            onclick="window.selectPlaylistForFeature('${playlist.id}', '${playlist.name}', '${playlist.image_url}')">
+                            <img src="${playlist.image_url || '/static/images/default-playlist.png'}" 
+                                class="me-2 rounded" width="40" height="40" alt="" 
+                                onerror="this.src='/static/images/default-playlist.png'">
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="fw-bold text-truncate">${playlist.name}</div>
+                                <small class="text-muted">${playlist.tracks_total} tracks</small>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>`;
+            
+        // Check if we have enough playlists to scroll and add a helper message
+        const playlistContainer = this.resultsContainer.querySelector('.scrollable-container');
+        if (playlistContainer && playlists.length > 5) {
+            // Add a subtle indicator that the list is scrollable
+            const scrollIndicator = document.createElement('div');
+            scrollIndicator.className = 'text-center text-muted small mt-2 mb-1';
+            scrollIndicator.textContent = 'Scroll for more playlists';
+            playlistContainer.appendChild(scrollIndicator);
+        }
+        
+        document.getElementById('refreshPlaylistsBtn')?.addEventListener('click', () => {
+            this.refreshPlaylists();
+        });
     }
 
     showDefaultResults() {
         this.resultsContainer.innerHTML = `
-            <div class="p-3 text-muted text-center">
-                <i class="fas fa-music me-2"></i>Loading your playlists...
+            <div class="playlist-container">
+                <div class="p-3 text-center">
+                    <div class="spinner-border spinner-border-sm text-primary mb-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <div class="text-muted">Loading your playlists...</div>
+                </div>
             </div>`;
     }
 
+    showError(message) {
+        this.resultsContainer.innerHTML = `
+            <div class="playlist-container">
+                <div class="p-3 text-danger text-center">
+                    <i class="fas fa-exclamation-circle me-2"></i>${message}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-primary" id="retryLoadBtn">
+                            <i class="fas fa-sync-alt me-1"></i>Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+            
+        document.getElementById('retryLoadBtn')?.addEventListener('click', () => {
+            this.refreshPlaylists();
+        });
+    }
+    
     setSearchLoading(isLoading) {
+        this.isLoading = isLoading;
         this.searchSpinner?.classList.toggle('d-none', !isLoading);
+        
+        const refreshBtn = document.getElementById('refreshPlaylistsBtn');
+        if (refreshBtn) {
+            refreshBtn.disabled = isLoading;
+            refreshBtn.innerHTML = isLoading ? 
+                '<i class="fas fa-spinner fa-spin"></i>' : 
+                '<i class="fas fa-sync-alt"></i>';
+        }
     }
 
     setSubmitLoading(isLoading) {
@@ -256,15 +480,25 @@ class CreatePlaylist {
         this.selectedDisplay.innerHTML = '<span class="text-muted">No playlist selected</span>';
     }
 
-    // Add new method to load recent playlists
-    async loadRecentPlaylists() {
+    // Improved method to load recent playlists
+    async loadRecentPlaylists(forceRefresh = false) {
+        if (this.isLoading && !forceRefresh) return;
+        
+        // Only show loading state if we don't have results already,
+        // unless this is a forced refresh
+        if (!this.loadedOnce || forceRefresh) {
+            this.showDefaultResults();
+        }
+        
         this.setSearchLoading(true);
+        
         try {
-            const response = await PlaylistUtils.fetchWithError('/playlists/search');
+            const timestamp = forceRefresh ? Date.now() : '';
+            const response = await PlaylistUtils.fetchWithError(`/playlists/search?timestamp=${timestamp}`);
             this.displayResults(response.data.search_results);
+            this.loadedOnce = true;
         } catch (error) {
             this.showError('Failed to load playlists');
-            this.showDefaultResults();
         } finally {
             this.setSearchLoading(false);
         }
@@ -354,11 +588,118 @@ class SetFeaturedPlaylist {
     }
 }
 
+// Track Management Functionality
+class TrackManager {
+    constructor() {
+        this.initialize();
+    }
+    
+    initialize() {
+        this.setupTrackPreview();
+        this.setupTrackRemoval();
+    }
+    
+    setupTrackPreview() {
+        // Track preview functionality
+        window.previewTrack = (trackId) => {
+            const previewUrl = document.querySelector(`tr[data-track-id="${trackId}"]`)?.dataset.previewUrl;
+            if (!previewUrl) {
+                PlaylistUtils.showToast("No preview available for this track", "warning");
+                return;
+            }
+            
+            // Stop any currently playing previews
+            const audioElements = document.querySelectorAll('.track-preview-audio');
+            audioElements.forEach(audio => audio.pause());
+            
+            // Create and play new audio preview
+            const audio = new Audio(previewUrl);
+            audio.className = 'track-preview-audio';
+            document.body.appendChild(audio);
+            
+            audio.play().catch(error => {
+                PlaylistUtils.showToast("Failed to play preview", "danger");
+                console.error("Audio play error:", error);
+            });
+            
+            // Update button to show playing state
+            const playButton = document.querySelector(`tr[data-track-id="${trackId}"] .play-preview-btn`);
+            if (playButton) {
+                const originalHtml = playButton.innerHTML;
+                playButton.innerHTML = '<i class="fas fa-pause"></i>';
+                
+                audio.addEventListener('ended', () => {
+                    playButton.innerHTML = originalHtml;
+                    audio.remove();
+                });
+                
+                playButton.addEventListener('click', () => {
+                    if (!audio.paused) {
+                        audio.pause();
+                        playButton.innerHTML = originalHtml;
+                    } else {
+                        audio.play();
+                        playButton.innerHTML = '<i class="fas fa-pause"></i>';
+                    }
+                }, { once: true });
+            }
+        };
+    }
+    
+    setupTrackRemoval() {
+        // Track removal functionality
+        window.removeTrack = async (trackId) => {
+            if (!confirm('Are you sure you want to remove this track?')) return;
+            
+            const trackRow = document.querySelector(`tr[data-track-id="${trackId}"]`);
+            if (!trackRow) return;
+            
+            const playlistId = document.querySelector('[data-playlist-id]')?.dataset.playlistId;
+            if (!playlistId) {
+                PlaylistUtils.showToast("Playlist ID not found", "danger");
+                return;
+            }
+            
+            // Visual feedback
+            trackRow.classList.add('removing');
+            
+            try {
+                const response = await PlaylistUtils.fetchWithError(
+                    `/playlists/${playlistId}/tracks/remove/${trackId}/`,
+                    { method: 'POST' }
+                );
+                
+                PlaylistUtils.showToast(response.message || "Track removed successfully");
+                
+                // Animate row removal
+                trackRow.style.height = `${trackRow.offsetHeight}px`;
+                setTimeout(() => {
+                    trackRow.style.height = '0';
+                    trackRow.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        trackRow.remove();
+                        // Renumber the rows
+                        document.querySelectorAll('table tbody tr').forEach((row, index) => {
+                            row.querySelector('td:first-child').textContent = index + 1;
+                        });
+                    }, 300);
+                }, 100);
+                
+            } catch (error) {
+                PlaylistUtils.showToast(error.message || "Failed to remove track", "danger");
+                trackRow.classList.remove('removing');
+            }
+        };
+    }
+}
+
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
     new PlaylistManager();
     new CreatePlaylist();
     new SetFeaturedPlaylist();
+    new TrackManager();
 });
 
 // Export for global access
@@ -382,15 +723,7 @@ window.selectPlaylistForFeature = function(id, name, imageUrl) {
     `;
 };
 
-// Debounce helper function
-function debounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
+// Expose playlist refresh globally
+window.refreshPlaylist = function() {
+    location.reload();
+};

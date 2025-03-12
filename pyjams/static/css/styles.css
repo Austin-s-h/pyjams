@@ -419,3 +419,93 @@ body {
 .bg-elevated {
     background: var(--background-elevated-base);
 }
+
+/* Playlist animations and styling */
+.removing { 
+    background-color: rgba(220, 53, 69, 0.1) !important; 
+}
+
+tr.track-row { 
+    transition: all 0.3s ease; 
+}
+
+.hover-highlight:hover { 
+    background-color: rgba(255, 255, 255, 0.1); 
+}
+
+/* Toast container positioning */
+.toast-container {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    padding: 1rem;
+    z-index: 1050;
+}
+
+/* Playlist search result styling */
+.playlist-result {
+    transition: background-color 0.2s ease;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* Scrollable containers */
+.scrollable-container {
+    max-height: 300px; /* Reduced height to ensure scrolling happens */
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--background-elevated-base);
+    border: 1px solid var(--background-elevated-highlight);
+    border-radius: 4px;
+}
+
+.scrollable-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollable-container::-webkit-scrollbar-track {
+    background: var(--background-elevated-base);
+}
+
+.scrollable-container::-webkit-scrollbar-thumb {
+    background-color: var(--background-elevated-highlight);
+    border-radius: 3px;
+}
+
+.scrollable-container::-webkit-scrollbar-thumb:hover {
+    background-color: var(--primary-color);
+}
+
+/* Results container with fixed header */
+.results-container {
+    display: flex;
+    flex-direction: column;
+    max-height: 350px;
+    background-color: var(--background-base);
+}
+
+.results-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--background-base);
+    padding: 10px;
+    border-bottom: 1px solid var(--background-elevated-highlight);
+}
+
+.results-body {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding-bottom: 10px; /* Add bottom padding for better UX */
+    min-height: 200px; /* Ensure minimum height for scrollability */
+}
+
+/* Add visible styles for debugging */
+.playlist-container {
+    max-height: 350px;
+    overflow: hidden;
+    border: 1px solid var(--background-elevated-highlight);
+    border-radius: 6px;
+}

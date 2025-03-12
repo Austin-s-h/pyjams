@@ -33,6 +33,13 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </button>
                             </li>
                         `).join('')}
+                        <li><hr class="dropdown-divider border-secondary"></li>
+                        <li>
+                            <button class="dropdown-item text-light hover-highlight py-2" 
+                                    onclick="previewTrack('${track.id}', '${track.preview_url || ''}')">
+                                <i class="fas fa-play me-2"></i>Preview
+                            </button>
+                        </li>
                     </ul>
                 </div>
             </div>
@@ -59,6 +66,28 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             PyJams.showError(error.message);
         }
+    }
+
+    // Add track preview functionality
+    window.previewTrack = function(trackId, previewUrl) {
+        if (!previewUrl) {
+            PyJams.showWarning("No preview available for this track");
+            return;
+        }
+        
+        // Stop any currently playing previews
+        const audioElements = document.querySelectorAll('.track-preview-audio');
+        audioElements.forEach(audio => audio.pause());
+        
+        // Create and play new audio preview
+        const audio = new Audio(previewUrl);
+        audio.className = 'track-preview-audio';
+        document.body.appendChild(audio);
+        
+        audio.play().catch(error => {
+            PyJams.showError("Failed to play preview");
+            console.error("Audio play error:", error);
+        });
     }
 
     searchInput.addEventListener('input', function() {
