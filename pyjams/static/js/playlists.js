@@ -24,13 +24,37 @@ const PlaylistUtils = {
                     'X-CSRFToken': this.getCookie('csrftoken')
                 }
             });
-            const data = await response.json();
             
-            if (!response.ok) {
-                throw new Error(data.error || data.detail || 'An error occurred');
+            // Check content type to handle non-JSON responses
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || data.detail || 'An error occurred');
+                }
+                
+                return data;
+            } else {
+                // Handle non-JSON responses
+                const text = await response.text();
+                console.error('Received non-JSON response:', text.substring(0, 500) + '...');
+                
+                if (response.redirected) {
+                    // If the response was a redirect, follow it
+                    window.location.href = response.url;
+                    return {};
+                }
+                
+                // Check if the response contains login form or authentication required
+                if (text.includes('login') || text.includes('sign in') || 
+                    text.includes('authentication') || text.includes('<form') ||
+                    !response.ok) {
+                    throw new Error('Authentication required or permission denied. Please log in and try again.');
+                }
+                
+                throw new Error(`Server returned non-JSON response (HTTP ${response.status}). Check console for details.`);
             }
-            
-            return data;
         } catch (error) {
             console.error('Fetch error:', error);
             throw error;
@@ -55,7 +79,7 @@ const PlaylistUtils = {
         
         const toastContainer = document.querySelector('.toast-container') || document.createElement('div');
         if (!document.querySelector('.toast-container')) {
-            toastContainer.className = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
             document.body.appendChild(toastContainer);
         }
         
@@ -107,14 +131,33 @@ window.PyJams = {
     }
 };
 
-// Playlist Manager Functionality
+// Main playlist management class
 class PlaylistManager {
     constructor() {
+        this.searchTimeout = null;
+        this.audioPlayer = null;
         this.modal = document.getElementById('playlistManagerModal');
         this.form = document.getElementById('playlistManagerForm');
         this.managerList = document.getElementById('managerList');
         this.loadingStates = {};
+        this.initializeEventListeners();
         this.setupEventListeners();
+    }
+
+    initializeEventListeners() {
+        // Search modal listeners
+        const searchModal = document.getElementById('searchModal');
+        if (searchModal) {
+            const searchInput = searchModal.querySelector('#trackSearch');
+            searchInput?.addEventListener('input', (e) => this.handleTrackSearch(e));
+        }
+
+        // Manager modal listeners
+        const managerModal = document.getElementById('managerModal');
+        if (managerModal) {
+            const addManagerForm = managerModal.querySelector('#addManagerForm');
+            addManagerForm?.addEventListener('submit', (e) => this.handleAddManager(e));
+        }
     }
 
     setupEventListeners() {
@@ -166,6 +209,132 @@ class PlaylistManager {
         }
     }
 
+    async handleTrackSearch(event) {
+        clearTimeout(this.searchTimeout);
+        const query = event.target.value.trim();
+        const resultsContainer = document.getElementById('searchResults');
+        const spinner = document.getElementById('searchSpinner');
+
+        if (query.length < 2) {
+            resultsContainer.innerHTML = '<p class="text-muted text-center">Enter at least 2 characters to search</p>';
+            return;
+        }
+
+        spinner.classList.remove('d-none');
+        
+        this.searchTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`/tracks/search/?q=${encodeURIComponent(query)}`);
+                const html = await response.text();
+                resultsContainer.innerHTML = html;
+            } catch (error) {
+                resultsContainer.innerHTML = '<p class="text-danger text-center">Error searching tracks</p>';
+                console.error('Search error:', error);
+            } finally {
+                spinner.classList.add('d-none');
+            }
+        }, 300);
+    }
+
+    async addTrack(trackId, playlistId) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        try {
+            const formData = new FormData();
+            formData.append('track_id', trackId);
+            formData.append('playlist_id', playlistId);
+
+            const response = await fetch(`/playlists/${playlistId}/tracks/add/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                this.showToast('success', 'Track added successfully');
+                const trackList = document.querySelector('.table tbody');
+                if (trackList && data.html) {
+                    trackList.innerHTML = data.html;
+                }
+            } else {
+                throw new Error(data.error || 'Failed to add track');
+            }
+        } catch (error) {
+            this.showToast('error', error.message);
+        }
+    }
+
+    async removeTrack(trackId, playlistId) {
+        if (!confirm('Are you sure you want to remove this track?')) return;
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        try {
+            const formData = new FormData();
+            formData.append('track_id', trackId);
+            formData.append('playlist_id', playlistId);
+
+            const response = await fetch(`/playlists/${playlistId}/tracks/remove/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                const trackRow = document.querySelector(`tr[data-track-id="${trackId}"]`);
+                trackRow?.remove();
+                this.showToast('success', 'Track removed successfully');
+            } else {
+                throw new Error(data.error || 'Failed to remove track');
+            }
+        } catch (error) {
+            this.showToast('error', error.message);
+        }
+    }
+
+    previewTrack(trackId) {
+        if (this.audioPlayer) {
+            this.audioPlayer.pause();
+            this.audioPlayer = null;
+        }
+
+        const trackElement = document.querySelector(`tr[data-track-id="${trackId}"]`);
+        const previewUrl = trackElement?.dataset.previewUrl;
+
+        if (!previewUrl) {
+            this.showToast('error', 'No preview available for this track');
+            return;
+        }
+
+        this.audioPlayer = new Audio(previewUrl);
+        this.audioPlayer.play();
+    }
+
+    showToast(type, message) {
+        const toastContainer = document.getElementById('toastContainer');
+        if (!toastContainer) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : 'success'} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+
+        toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    }
+
     async loadManagers(playlistId) {
         if (this.loadingStates[playlistId]) return;
         
@@ -174,10 +343,10 @@ class PlaylistManager {
             this.setLoadingState(true);
             
             const data = await PlaylistUtils.fetchWithError(
-                `/manage/playlist/${playlistId}/managers/`
+                `/playlists/${playlistId}/managers/`
             );
             if (this.managerList) {
-                this.managerList.innerHTML = data.html;
+                this.managerList.innerHTML = data.html || this.renderManagerList(data.managers);
             }
         } catch (error) {
             PlaylistUtils.showToast('Failed to load managers', 'danger');
@@ -187,25 +356,21 @@ class PlaylistManager {
         }
     }
     
-    setLoadingState(isLoading) {
-        const refreshBtn = document.getElementById('refreshManagersBtn');
-        if (refreshBtn) {
-            refreshBtn.disabled = isLoading;
-            refreshBtn.innerHTML = isLoading ? 
-                '<i class="fas fa-spinner fa-spin"></i>' : 
-                '<i class="fas fa-sync-alt"></i>';
+    renderManagerList(managers) {
+        if (!managers || managers.length === 0) {
+            return `<div class="list-group-item text-center py-3">No managers found</div>`;
         }
         
-        if (this.managerList && isLoading && this.managerList.children.length === 0) {
-            this.managerList.innerHTML = `
-                <div class="text-center py-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 text-muted">Loading managers...</p>
-                </div>
-            `;
-        }
+        return managers.map(manager => `
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>${manager.user_id}</div>
+                <button class="btn btn-sm btn-danger remove-manager-btn" 
+                    data-user-id="${manager.user_id}" 
+                    onclick="playlistManager.removeManager(${manager.playlist_id}, '${manager.user_id}')">
+                    <i class="fas fa-times"></i> Remove
+                </button>
+            </div>
+        `).join('');
     }
 
     async removeManager(playlistId, userId) {
@@ -221,8 +386,11 @@ class PlaylistManager {
             }
             
             const data = await PlaylistUtils.fetchWithError(
-                `/manage/playlist/${playlistId}/managers/remove/${userId}/`,
-                { method: 'POST' }
+                `/playlists/${playlistId}/managers/remove/`,
+                { 
+                    method: 'POST',
+                    body: new FormData().append('user_id', userId)
+                }
             );
             
             PlaylistUtils.showToast(data.message || 'Manager removed successfully');
@@ -234,9 +402,17 @@ class PlaylistManager {
             this.loadingStates[`remove-${userId}`] = false;
         }
     }
+
+    setLoadingState(isLoading) {
+        // Implement loading state management
+        const loadingIndicator = document.getElementById('managersLoadingIndicator');
+        if (loadingIndicator) {
+            loadingIndicator.style.display = isLoading ? 'block' : 'none';
+        }
+    }
 }
 
-// Modify CreatePlaylist class to SelectPlaylist
+// Playlist creation and featuring class
 class CreatePlaylist {
     constructor() {
         this.form = document.getElementById('createPlaylistForm');
@@ -247,11 +423,12 @@ class CreatePlaylist {
         this.searchSpinner = document.getElementById('searchSpinner');
         this.isLoading = false;
         this.loadedOnce = false;
+        this.loadAttempts = 0;
         
         if (this.form) {
             this.init();
-            // Load initial playlists
-            this.loadRecentPlaylists();
+            // Load initial playlists with a slight delay
+            setTimeout(() => this.loadRecentPlaylists(), 300);
         }
     }
 
@@ -259,6 +436,7 @@ class CreatePlaylist {
         this.setupSearchHandler();
         this.setupFormHandler();
         this.setupRefreshButton();
+        this.setupFeatureTypeHandler();
     }
 
     setupRefreshButton() {
@@ -304,11 +482,31 @@ class CreatePlaylist {
 
     async searchPlaylists(query) {
         try {
-            const response = await PlaylistUtils.fetchWithError(
-                `/playlists/search?q=${encodeURIComponent(query)}&timestamp=${Date.now()}`
-            );
-            this.displayResults(response.data.search_results);
+            const timestamp = Date.now();
+            const url = `/playlists/search?q=${encodeURIComponent(query)}&timestamp=${timestamp}`;
+            console.log('Searching playlists:', url);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'X-CSRFToken': PlaylistUtils.getCookie('csrftoken'),
+                    'Accept': 'application/json'
+                }
+            });
+            
+            // Check for authentication issues
+            if (response.status === 401 || response.redirected) {
+                this.showSeriousError('Your Spotify session has expired. Please reconnect.');
+                return;
+            }
+            
+            const data = await response.json();
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            this.displayResults(data.data.search_results);
         } catch (error) {
+            console.error('Playlist search error:', error);
             this.showError('Search failed. Please try again.');
         }
     }
@@ -457,18 +655,21 @@ class CreatePlaylist {
         const playlistId = formData.get('playlist_id');
         const featureType = formData.get('feature_type');
         
-        const endpoint = `/playlists/${playlistId}/feature/${featureType}/`;
-
         try {
-            const data = await PlaylistUtils.fetchWithError(endpoint, {
+            // Use the standardized endpoint
+            const response = await PlaylistUtils.fetchWithError(`/playlists/${playlistId}/feature/`, {
                 method: 'POST',
                 body: formData
             });
-            PyJams.showSuccess(data.message || 'Playlist featured successfully');
+            
+            PyJams.showSuccess(response.message || 'Playlist featured successfully');
             this.closeModal();
-            location.reload();
+            
+            // Reload the page after a short delay to show the success message
+            setTimeout(() => location.reload(), 1000);
         } catch (error) {
             PyJams.showError(error.message || 'Failed to feature playlist');
+            console.error('Feature playlist error details:', error);
         }
     }
 
@@ -480,27 +681,83 @@ class CreatePlaylist {
         this.selectedDisplay.innerHTML = '<span class="text-muted">No playlist selected</span>';
     }
 
-    // Improved method to load recent playlists
     async loadRecentPlaylists(forceRefresh = false) {
         if (this.isLoading && !forceRefresh) return;
         
-        // Only show loading state if we don't have results already,
-        // unless this is a forced refresh
         if (!this.loadedOnce || forceRefresh) {
             this.showDefaultResults();
         }
         
         this.setSearchLoading(true);
+        this.loadAttempts++;
         
         try {
-            const timestamp = forceRefresh ? Date.now() : '';
-            const response = await PlaylistUtils.fetchWithError(`/playlists/search?timestamp=${timestamp}`);
+            // Add timestamp to avoid caching issues
+            const timestamp = Date.now();
+            const url = `/playlists/search?timestamp=${timestamp}${forceRefresh ? '&refresh=true' : ''}`;
+            console.log('Loading playlists from:', url);
+            
+            const response = await PlaylistUtils.fetchWithError(url);
+            
+            if (!response.data || !response.data.search_results) {
+                throw new Error('Invalid response format');
+            }
+            
             this.displayResults(response.data.search_results);
             this.loadedOnce = true;
+            this.loadAttempts = 0; // Reset attempt counter on success
+            
+            console.log(`Loaded ${response.data.search_results.length} playlists successfully`);
         } catch (error) {
-            this.showError('Failed to load playlists');
+            console.error('Failed to load playlists:', error);
+            
+            // After 3 failed attempts, show a more serious error
+            if (this.loadAttempts >= 3) {
+                this.showSeriousError('There was an issue loading your playlists. You may need to reconnect your Spotify account.');
+            } else {
+                this.showError('Failed to load playlists. Retrying...');
+                // Auto retry after a delay for the first couple attempts
+                setTimeout(() => this.loadRecentPlaylists(true), 2000);
+            }
         } finally {
             this.setSearchLoading(false);
+        }
+    }
+
+    showSeriousError(message) {
+        this.resultsContainer.innerHTML = `
+            <div class="playlist-container">
+                <div class="p-3 text-danger text-center">
+                    <i class="fas fa-exclamation-triangle me-2"></i>${message}
+                    <div class="mt-3">
+                        <a href="/spotify/login" class="btn btn-primary">
+                            <i class="fab fa-spotify me-1"></i>Reconnect Spotify
+                        </a>
+                        <button class="btn btn-secondary ms-2" id="retryLoadBtn">
+                            <i class="fas fa-sync-alt me-1"></i>Try Again
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+            
+        document.getElementById('retryLoadBtn')?.addEventListener('click', () => {
+            this.loadAttempts = 0; // Reset attempts
+            this.refreshPlaylists();
+        });
+    }
+
+    setupFeatureTypeHandler() {
+        const featureTypeSelect = this.form?.querySelector('[name="feature_type"]');
+        const playlistIdInput = this.form?.querySelector('[name="playlist_id"]');
+        const submitButton = document.getElementById('featureButton');
+        
+        if (featureTypeSelect && submitButton) {
+            featureTypeSelect.addEventListener('change', () => {
+                // Enable button only if both a playlist is selected and feature type is chosen
+                const hasPlaylistSelected = playlistIdInput && playlistIdInput.value;
+                const hasFeatureType = featureTypeSelect.value;
+                submitButton.disabled = !(hasPlaylistSelected && hasFeatureType);
+            });
         }
     }
 }
@@ -530,11 +787,8 @@ class SetFeaturedPlaylist {
             const playlistId = formData.get('playlist_id');
             
             try {
-                // Use the correct feature endpoint based on feature type
-                const featureType = formData.get('feature_type');
-                const endpoint = featureType === 'site' ? 
-                    `/playlists/${playlistId}/feature/site/` :
-                    `/playlists/${playlistId}/feature/community/`;
+                // Use the unified feature endpoint instead of separate endpoints
+                const endpoint = `/playlists/${playlistId}/feature/`;
 
                 const data = await PlaylistUtils.fetchWithError(
                     endpoint,
@@ -665,8 +919,14 @@ class TrackManager {
             
             try {
                 const response = await PlaylistUtils.fetchWithError(
-                    `/playlists/${playlistId}/tracks/remove/${trackId}/`,
-                    { method: 'POST' }
+                    `/playlists/${playlistId}/tracks/remove/`,
+                    { 
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: `track_id=${trackId}&playlist_id=${playlistId}`
+                    }
                 );
                 
                 PlaylistUtils.showToast(response.message || "Track removed successfully");
@@ -696,8 +956,9 @@ class TrackManager {
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-    new PlaylistManager();
-    new CreatePlaylist();
+    const playlistManager = new PlaylistManager();
+    window.playlistManager = playlistManager; // Make it globally accessible
+    window.playlistCreator = new CreatePlaylist(); // Make it globally accessible
     new SetFeaturedPlaylist();
     new TrackManager();
 });
@@ -707,20 +968,44 @@ window.openManagerModal = function(playlistId, playlistName) {
     document.getElementById('playlistId').value = playlistId;
     document.getElementById('playlistManagerModalLabel').textContent = 
         `Add Manager to "${playlistName}"`;
-}
+};
 
 // Add global helper function
 window.selectPlaylistForFeature = function(id, name, imageUrl) {
-    const form = document.getElementById('createPlaylistForm');
-    form.querySelector('[name="playlist_id"]').value = id;
+    const selectedDisplay = document.getElementById('selectedPlaylist');
+    if (!selectedDisplay) {
+        console.error('Cannot find selectedPlaylist element');
+        return;
+    }
     
-    document.getElementById('selectedPlaylist').innerHTML = `
+    selectedDisplay.innerHTML = `
         <div class="d-flex align-items-center">
             <img src="${imageUrl || '/static/images/default-playlist.png'}" 
-                 class="me-2 rounded" width="40" height="40" alt="">
+                 class="me-2 rounded" width="40" height="40" alt=""
+                 onerror="this.src='/static/images/default-playlist.png'">
             <div class="fw-bold">${name}</div>
         </div>
     `;
+
+    const form = document.getElementById('createPlaylistForm');
+    if (form) {
+        const playlistIdInput = form.querySelector('[name="playlist_id"]');
+        if (playlistIdInput) {
+            playlistIdInput.value = id;
+        }
+        
+        const submitButton = document.getElementById('featureButton');
+        if (submitButton) {
+            const featureType = form.querySelector('[name="feature_type"]').value;
+            submitButton.disabled = !featureType;
+            
+            // Optionally focus the feature type dropdown if it's not selected
+            const featureTypeSelect = form.querySelector('[name="feature_type"]');
+            if (featureTypeSelect && !featureTypeSelect.value) {
+                featureTypeSelect.focus();
+            }
+        }
+    }
 };
 
 // Expose playlist refresh globally

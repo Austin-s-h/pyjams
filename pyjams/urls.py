@@ -30,14 +30,9 @@ app_patterns = [
                     path("playlists/<str:playlist_id>/", views.playlist_details, name="playlist_details"),
                     # Featured playlists
                     path(
-                        "playlists/<str:playlist_id>/feature/site/",
-                        views.feature_site_playlist,
-                        name="feature_site_playlist",
-                    ),
-                    path(
-                        "playlists/<str:playlist_id>/feature/community/",
+                        "playlists/<str:playlist_id>/feature/",
                         views.feature_community_playlist,
-                        name="feature_community_playlist",
+                        name="feature_playlist",
                     ),
                     path("playlists/<int:playlist_id>/unfeature/", views.unfeature_playlist, name="unfeature_playlist"),
                     # Playlist managers

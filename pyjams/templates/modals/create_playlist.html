@@ -4,9 +4,9 @@
         <div class="modal-content bg-dark text-light border-secondary">
             <div class="modal-header border-secondary">
                 <h5 class="modal-title">Feature Playlist</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="createPlaylistForm" method="post">
+            <form id="createPlaylistForm" method="post" onsubmit="return false;">
                 {% csrf_token %}
                 <div class="modal-body">
                     <input type="hidden" name="playlist_id">
@@ -28,7 +28,8 @@
                     <!-- Results Section -->
                     <div id="searchResults" class="border border-secondary rounded mb-3 search-results">
                         <div class="p-3 text-muted text-center">
-                            <i class="fas fa-music me-2"></i>Loading your playlists...
+                            <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                            <div>Loading your playlists...</div>
                         </div>
                     </div>
 
@@ -42,8 +43,8 @@
 
                     <!-- Feature Type -->
                     <div class="mb-3">
-                        <label for="feature_type" class="form-label">Feature Type</label>
-                        <select name="feature_type" class="form-select bg-dark text-light border-secondary" required>
+                        <label for="feature_type" class="form-label" id="feature_type_label">Feature Type</label>
+                        <select name="feature_type" id="feature_type" class="form-select bg-dark text-light border-secondary" required aria-labelledby="feature_type_label">
                             <option value="">Choose feature type...</option>
                             <option value="community">Community Featured</option>
                             {% if user.has_permissions.MANAGE_FEATURED %}
@@ -54,19 +55,31 @@
                 </div>
                 <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary" disabled>Feature Playlist</button>
+                    <button type="submit" class="btn btn-primary" id="featureButton" disabled>Feature Playlist</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<!-- Initialize playlist creation functionality when modal is shown -->
 <script>
-// Initialize playlist creation functionality when document loads
 document.addEventListener('DOMContentLoaded', () => {
-    // Create an instance of the playlist manager
-    const playlistCreator = new CreatePlaylist();
+    const createPlaylistModal = document.getElementById('createPlaylistModal');
+    if (createPlaylistModal) {
+        createPlaylistModal.addEventListener('shown.bs.modal', () => {
+            // Check if window.playlistCreator exists, if not ensure it's properly initialized
+            if (!window.playlistCreator && typeof CreatePlaylist === 'function') {
+                window.playlistCreator = new CreatePlaylist();
+            }
+            
+            // If playlistCreator exists, refresh playlists
+            if (window.playlistCreator && typeof window.playlistCreator.refreshPlaylists === 'function') {
+                window.playlistCreator.refreshPlaylists();
+            } else {
+                console.error('PlaylistCreator not properly initialized');
+            }
+        });
+    }
 });
-
-// PlaylistManager class definition moved to playlists.js
 </script>

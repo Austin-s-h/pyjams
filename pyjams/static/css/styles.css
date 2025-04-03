@@ -50,6 +50,21 @@ body {
     line-height: 1.6;
 }
 
+/* 
+ * Fix the ordering of vendor prefixes:
+ * Always put standard properties after vendor-prefixed ones
+ */
+.webkit-mask-fix {
+    -webkit-mask-image: none;
+    mask-image: none;
+}
+
+/* Use explicit height instead of min-height: auto for Firefox compatibility */
+.firefox-compat-fix {
+    min-height: 0;
+    height: auto;
+}
+
 .container {
     width: 100%;
     max-width: 1200px;

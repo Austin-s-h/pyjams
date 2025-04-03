@@ -271,14 +271,14 @@ def manage_playlists(request: HttpRequest) -> HttpResponse:
     if request.user.is_authenticated:
         try:
             spotify = get_spotify(request.session)
-            current_user = spotify.current_user()
+            # current_user = spotify.current_user()
 
-            # Get featured playlists
+            # Get featured playlists with fresh data from Spotify
             context["site_featured"] = FeaturedPlaylist.get_site_featured()
             context["community_featured"] = FeaturedPlaylist.get_community_featured()
 
             if request.user.has_permissions(Permission.CREATE_FEATURED):
-                playlists = spotify.user_playlists(current_user["id"])
+                playlists = spotify.current_user_playlists()  # Get user's playlists
                 context["user_playlists"] = playlists["items"]
 
                 if request.user.has_permissions(Permission.MANAGE_FEATURED):
@@ -288,93 +288,77 @@ def manage_playlists(request: HttpRequest) -> HttpResponse:
         except Exception as e:
             messages.error(request, f"Failed to load playlists: {e!s}")
 
+    if request.headers.get("HX-Request"):
+        return render(request, "components/playlist_management.html", context)
     return render(request, "manage_playlists.html", context)
 
 
 @require_permissions(Permission.CREATE_FEATURED)
 @require_http_methods(["POST"])
-def feature_community_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
-    """Feature a playlist in the community section."""
+def feature_community_playlist(request: HttpRequest, playlist_id: str) -> JsonResponse:
+    """Feature a playlist in either community or site section."""
+    if not request.headers.get("X-CSRFToken"):
+        return JsonResponse({"error": "CSRF token missing"}, status=403)
+
+    feature_type = request.POST.get("feature_type", "community")
+    if feature_type not in ["community", "site"]:
+        return JsonResponse({"error": "Invalid feature type"}, status=400)
+
+    # Check permission for site featuring
+    if feature_type == "site" and not request.user.has_permissions(Permission.MANAGE_FEATURED):
+        return JsonResponse({"error": "Insufficient permissions to feature site playlists"}, status=403)
+
+    # Check permission for community featuring
+    if feature_type == "community" and not request.user.has_permissions(Permission.CREATE_FEATURED):
+        return JsonResponse({"error": "Insufficient permissions to feature community playlists"}, status=403)
+
     try:
         spotify = get_spotify(request.session)
         playlist = spotify.playlist(playlist_id)
 
-        # Check if user already has a featured playlist
-        if FeaturedPlaylist.objects.filter(creator=request.user, featured_type="community", is_active=True).exists():
-            error(request, "You already have a featured playlist")
-            return redirect("pyjams:playlists")
+        if not playlist:
+            return JsonResponse({"error": "Playlist not found"}, status=404)
 
-        FeaturedPlaylist.objects.create(
-            spotify_id=playlist_id,
-            name=playlist["name"],
-            description=playlist.get("description", ""),
-            image_url=playlist["images"][0]["url"] if playlist["images"] else None,
-            featured_type="community",
-            creator=request.user,
-            is_active=True,
-        )
-        success(request, f"'{playlist['name']}' is now featured in the community!")
-    except Exception as e:
-        error(request, f"Failed to feature playlist: {e!s}")
+        # Check for existing featured playlist by this user
+        existing = FeaturedPlaylist.objects.filter(
+            creator=request.user, featured_type=feature_type, is_active=True
+        ).first()
 
-    return redirect("pyjams:playlists")
+        if feature_type == "community" and existing:
+            # Deactivate previous community playlist
+            existing.is_active = False
+            existing.unfeatured_date = timezone.now()
+            existing.save()
 
-
-@require_permissions(Permission.MANAGE_FEATURED)
-@require_http_methods(["POST"])
-def feature_site_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
-    """Set the site-wide featured playlist."""
-    try:
-        # Deactivate current site featured playlist
-        FeaturedPlaylist.objects.filter(featured_type="site", is_active=True).update(
-            is_active=False, unfeatured_date=timezone.now()
-        )
-
-        spotify = get_spotify(request.session)
-        playlist = spotify.playlist(playlist_id)
-
-        FeaturedPlaylist.objects.create(
-            spotify_id=playlist_id,
-            name=playlist["name"],
-            description=playlist.get("description", ""),
-            image_url=playlist["images"][0]["url"] if playlist["images"] else None,
-            featured_type="site",
-            creator=request.user,
-            is_active=True,
-        )
-        success(request, f"'{playlist['name']}' is now the site featured playlist!")
-    except Exception as e:
-        error(request, f"Failed to feature playlist: {e!s}")
-
-    return redirect("pyjams:playlists")
-
-
-@require_permissions(Permission.ADMIN)
-@require_http_methods(["POST"])
-def feature_playlist(request: HttpRequest, playlist_id: str) -> HttpResponse:
-    """Set a playlist as featured."""
-    try:
-        # Deactivate current featured playlist
-        FeaturedPlaylist.objects.filter(is_active=True).update(is_active=False, unfeatured_date=timezone.now())
+        # For site playlist, deactivate current one
+        if feature_type == "site":
+            FeaturedPlaylist.objects.filter(featured_type="site", is_active=True).update(
+                is_active=False, unfeatured_date=timezone.now()
+            )
 
         # Create new featured playlist
-        spotify = get_spotify(request.session)
-        playlist = spotify.playlist(playlist_id)
-
-        FeaturedPlaylist.objects.create(
+        featured = FeaturedPlaylist.objects.create(
             spotify_id=playlist_id,
             name=playlist["name"],
             description=playlist.get("description", ""),
             image_url=playlist["images"][0]["url"] if playlist["images"] else None,
-            featured_date=timezone.now(),
+            featured_type=feature_type,
+            creator=request.user,
             is_active=True,
         )
 
-        success(request, f"'{playlist['name']}' is now featured!")
-    except Exception as e:
-        error(request, f"Failed to feature playlist: {e!s}")
+        # Create initial playlist manager entry for the creator
+        PlaylistManager.objects.create(playlist=featured, user=request.user, is_active=True)
 
-    return redirect("pyjams:manage_spotify")
+        success_msg = f"'{playlist['name']}' is now featured as a {feature_type} playlist!"
+        messages.success(request, success_msg)
+
+        # Return success response without trying to render HTML
+        return JsonResponse({"success": True, "message": success_msg})
+
+    except Exception as e:
+        error_msg = f"Failed to feature playlist: {e!s}"
+        return JsonResponse({"error": error_msg}, status=400)
 
 
 @require_permissions(Permission.ADMIN)
@@ -483,23 +467,30 @@ def search_playlists(request: HttpRequest) -> JsonResponse:
     Returns top 5 user playlists when no query is provided.
     """
     q = request.GET.get("q", "").strip()
+    refresh = request.GET.get("refresh", "false").lower() == "true"
     spotify = get_spotify(request.session)
 
     try:
         # Get current user's playlists
         current_user = spotify.current_user()
-        # Always get top 5 recent playlists
-        user_playlists = spotify.user_playlists(current_user["id"], limit=5)
 
-        def format_playlist(p):
+        # Get user's playlists with a higher limit when explicitly refreshing
+        limit = 10 if refresh else 5
+        user_playlists = spotify.user_playlists(current_user["id"], limit=limit)
+
+        def format_playlist(p: dict[str, Any]) -> dict[str, Any]:
+            image_url = None
+            if p["images"] and len(p["images"]) > 0:
+                image_url = p["images"][0]["url"]
+
             return {
                 "id": p["id"],
                 "name": p["name"],
                 "description": p.get("description", ""),
-                "image_url": p["images"][0]["url"] if p["images"] else None,
+                "image_url": image_url,
                 "tracks_total": p["tracks"]["total"],
                 "owner": p["owner"]["display_name"],
-                "is_public": p["public"],
+                "is_public": p.get("public", False),
             }
 
         # Filter playlists if search query present

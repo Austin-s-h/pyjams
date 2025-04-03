@@ -5,7 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import MinLengthValidator, URLValidator
 from django.db import models
-from django.db.models import Index, ManyToManyField
+from django.db.models import Index
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -166,9 +166,6 @@ class FeaturedPlaylist(BaseModel):
     image_url = models.URLField(null=True, blank=True, validators=[URLValidator()])
     creator = models.ForeignKey(User, on_delete=models.PROTECT, related_name="featured_playlists")
     contribution_rules = models.JSONField(default=dict)
-    managers: ManyToManyField = models.ManyToManyField(
-        User, through="PlaylistManager", related_name="managed_featured_playlists"
-    )
     managers = models.ManyToManyField(User, through="PlaylistManager", related_name="managed_featured_playlists")
     featured_date = models.DateTimeField(default=timezone.now)
     unfeatured_date = models.DateTimeField(null=True, blank=True)

@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchResults = document.getElementById('searchResults');
     const searchSpinner = document.getElementById('searchSpinner');
     let searchTimeout;
+    
+    // Initialize the searchUrl from data attribute or default to tracks search endpoint
+    const searchUrl = searchInput?.dataset.searchUrl || '/tracks/search/';
 
     function renderTrackItem(track, playlists) {
         return `
@@ -46,27 +49,32 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
-    async function addTrackToPlaylist(trackId, playlistId) {
+    // Add track to playlist function
+    window.addTrackToPlaylist = async function(trackId, playlistId) {
         try {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const formData = new FormData();
+            formData.append('track_id', trackId);
+            formData.append('playlist_id', playlistId);
+            
             const response = await fetch(`/playlists/${playlistId}/tracks/add/`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': csrfToken
                 },
-                body: `track_id=${trackId}&playlist_id=${playlistId}`
+                body: formData
             });
             
             const data = await response.json();
             if (response.ok) {
-                PyJams.showSuccess(data.message);
+                PyJams.showSuccess(data.message || 'Track added successfully');
             } else {
                 throw new Error(data.error || 'Failed to add track');
             }
         } catch (error) {
-            PyJams.showError(error.message);
+            PyJams.showError(error.message || 'Failed to add track');
         }
-    }
+    };
 
     // Add track preview functionality
     window.previewTrack = function(trackId, previewUrl) {
@@ -90,52 +98,60 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        const query = this.value.trim();
-        
-        if (query.length < 2) {
-            searchResults.style.display = 'none';
-            return;
-        }
-
-        searchTimeout = setTimeout(async () => {
-            try {
-                searchSpinner?.classList.remove('d-none');
-                const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
-                
-                searchResults.innerHTML = data.tracks.map(track => 
-                    renderTrackItem(track, data.playlists)
-                ).join('');
-                
-                searchResults.style.display = 'block';
-                
-                // Initialize dropdowns
-                document.querySelectorAll('.dropdown-toggle').forEach(dropdown => {
-                    new bootstrap.Dropdown(dropdown);
-                });
-                
-            } catch (error) {
-                console.error('Error:', error);
-                searchResults.innerHTML = `
-                    <div class="list-group-item bg-dark text-light text-center py-4">
-                        <i class="fas fa-exclamation-circle fa-2x mb-3 text-danger"></i>
-                        <p class="mb-0">Error searching tracks</p>
-                    </div>`;
-            } finally {
-                searchSpinner?.classList.add('d-none');
+    // Setup search input event listeners
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length < 2) {
+                if (searchResults) searchResults.style.display = 'none';
+                return;
             }
-        }, 300);
-    });
 
-    // Make addTrackToPlaylist available globally
-    window.addTrackToPlaylist = addTrackToPlaylist;
+            searchTimeout = setTimeout(async () => {
+                try {
+                    searchSpinner?.classList.remove('d-none');
+                    const response = await fetch(`${searchUrl}?q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+                    
+                    if (searchResults) {
+                        searchResults.innerHTML = data.tracks.map(track => 
+                            renderTrackItem(track, data.playlists)
+                        ).join('');
+                        
+                        searchResults.style.display = 'block';
+                        
+                        // Initialize dropdowns
+                        document.querySelectorAll('.dropdown-toggle').forEach(dropdown => {
+                            new bootstrap.Dropdown(dropdown);
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    if (searchResults) {
+                        searchResults.innerHTML = `
+                            <div class="list-group-item bg-dark text-light text-center py-4">
+                                <i class="fas fa-exclamation-circle fa-2x mb-3 text-danger"></i>
+                                <p class="mb-0">Error searching tracks</p>
+                            </div>`;
+                    }
+                } finally {
+                    searchSpinner?.classList.add('d-none');
+                }
+            }, 300);
+        });
+    }
 
-    // Hide results when clicking outside
+    // Hide results when clicking outside - Fix for null check
     document.addEventListener('click', function(e) {
-        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-            searchResults.style.display = 'none';
+        // Only run this code if both searchInput and searchResults exist
+        if (searchInput && searchResults) {
+            // Check if the click is outside both elements
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
         }
     });
 });

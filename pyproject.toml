@@ -73,7 +73,8 @@ select = [
 ]
 "**/migrations/*.py" = [
   "E501", # ignore line length in migrations
-  "RUF012" # ignore mutable class attributes in migrations
+  "RUF012", # ignore mutable class attributes in migrations
+  "I001" # ignore import order
 ]
 
 [tool.ruff.lint.isort]

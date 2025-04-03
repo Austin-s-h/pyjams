@@ -18,7 +18,7 @@ def validate_permissions_schema(value: dict[str, Any]) -> None:
     }
     """
 
-    REQUIRED_PERMISSIONS = {
+    required_permissions = {
         "can_add_songs": bool,
         "can_remove_songs": bool,
         "can_invite_users": bool,
@@ -27,14 +27,14 @@ def validate_permissions_schema(value: dict[str, Any]) -> None:
     }
 
     # Validate all required permissions exist
-    missing_perms = set(REQUIRED_PERMISSIONS.keys()) - set(value.keys())
+    missing_perms = set(required_permissions.keys()) - set(value.keys())
     if missing_perms:
         raise ValidationError(_("Missing required permissions: %(perms)s"), params={"perms": ", ".join(missing_perms)})
 
     # Validate permission types
     for perm_name, perm_value in value.items():
-        if perm_name not in REQUIRED_PERMISSIONS:
+        if perm_name not in required_permissions:
             raise ValidationError(_("Unknown permission: %(perm)s"), params={"perm": perm_name})
 
-        if not isinstance(perm_value, REQUIRED_PERMISSIONS[perm_name]):
+        if not isinstance(perm_value, required_permissions[perm_name]):
             raise ValidationError(_("Permission '%(perm)s' must be a boolean"), params={"perm": perm_name})

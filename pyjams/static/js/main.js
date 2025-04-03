@@ -1,7 +1,8 @@
 // Global error handling
 window.addEventListener('error', function(e) {
     console.error('Global error:', e.error);
-    if (window.PyJams) {
+    // Only call showError if PyJams exists and is initialized
+    if (window.PyJams && typeof window.PyJams.showError === 'function') {
         window.PyJams.showError('An unexpected error occurred');
     }
 });
@@ -10,16 +11,37 @@ window.addEventListener('error', function(e) {
 window.PyJams = {
     showToast: (message, type = 'success') => {
         const toastEl = document.getElementById('liveToast');
-        if (!toastEl) return;
+        if (!toastEl) {
+            // Fallback to console if toast element doesn't exist
+            console.log(`${type.toUpperCase()}: ${message}`);
+            return;
+        }
 
-        const toast = new bootstrap.Toast(toastEl);
-        toastEl.querySelector('.toast-title').textContent = type.charAt(0).toUpperCase() + type.slice(1);
-        toastEl.querySelector('.toast-body').textContent = message;
+        // Get bootstrap toast instance
+        let toast;
+        try {
+            toast = new bootstrap.Toast(toastEl);
+        } catch (error) {
+            console.error('Failed to create toast:', error);
+            return;
+        }
+
+        // Set title and message if elements exist
+        const titleEl = toastEl.querySelector('#toastTitle');
+        const msgEl = toastEl.querySelector('#toastMessage');
+        
+        if (titleEl) titleEl.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+        if (msgEl) msgEl.textContent = message;
+        
+        // Update toast appearance
         toastEl.className = `toast ${type === 'error' ? 'bg-danger' : 'bg-success'} text-white`;
+        
+        // Show the toast
         toast.show();
     },
     showSuccess: (message) => window.PyJams.showToast(message, 'success'),
-    showError: (message) => window.PyJams.showToast(message, 'error')
+    showError: (message) => window.PyJams.showToast(message, 'error'),
+    showWarning: (message) => window.PyJams.showToast(message, 'warning')
 };
 
 // Admin Panel Functionality

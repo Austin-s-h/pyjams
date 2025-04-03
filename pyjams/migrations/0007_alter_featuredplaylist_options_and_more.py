@@ -8,125 +8,155 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
-        ('pyjams', '0006_alter_featuredplaylist_featured_type'),
+        ("auth", "0012_alter_user_first_name_max_length"),
+        ("pyjams", "0006_alter_featuredplaylist_featured_type"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='featuredplaylist',
-            options={'ordering': ['-featured_date'], 'permissions': [('can_feature_site', 'Can feature site playlists'), ('can_feature_community', 'Can feature community playlists')]},
+            name="featuredplaylist",
+            options={
+                "ordering": ["-featured_date"],
+                "permissions": [
+                    ("can_feature_site", "Can feature site playlists"),
+                    ("can_feature_community", "Can feature community playlists"),
+                ],
+            },
         ),
         migrations.AlterModelOptions(
-            name='moderationaction',
-            options={'ordering': ['-created_at']},
+            name="moderationaction",
+            options={"ordering": ["-created_at"]},
         ),
         migrations.AlterModelOptions(
-            name='playlistmanager',
-            options={'ordering': ['-created_at']},
+            name="playlistmanager",
+            options={"ordering": ["-created_at"]},
         ),
         migrations.RemoveField(
-            model_name='featuredplaylist',
-            name='is_visible',
+            model_name="featuredplaylist",
+            name="is_visible",
         ),
         migrations.AddField(
-            model_name='featuredplaylist',
-            name='updated_at',
+            model_name="featuredplaylist",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AddField(
-            model_name='moderationaction',
-            name='is_active',
+            model_name="moderationaction",
+            name="is_active",
             field=models.BooleanField(default=True),
         ),
         migrations.AddField(
-            model_name='moderationaction',
-            name='permissions',
+            model_name="moderationaction",
+            name="permissions",
             field=models.JSONField(default=dict, validators=[pyjams.models.validate_permissions_schema]),
         ),
         migrations.AddField(
-            model_name='moderationaction',
-            name='updated_at',
+            model_name="moderationaction",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AddField(
-            model_name='playlistmanager',
-            name='updated_at',
+            model_name="playlistmanager",
+            name="updated_at",
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AlterField(
-            model_name='featuredplaylist',
-            name='image_url',
+            model_name="featuredplaylist",
+            name="image_url",
             field=models.URLField(blank=True, null=True, validators=[django.core.validators.URLValidator()]),
         ),
         migrations.AlterField(
-            model_name='featuredplaylist',
-            name='name',
+            model_name="featuredplaylist",
+            name="name",
             field=models.CharField(max_length=255, validators=[django.core.validators.MinLengthValidator(1)]),
         ),
         migrations.AlterField(
-            model_name='featuredplaylist',
-            name='spotify_id',
-            field=models.CharField(db_index=True, max_length=64, unique=True, validators=[django.core.validators.MinLengthValidator(10)]),
+            model_name="featuredplaylist",
+            name="spotify_id",
+            field=models.CharField(
+                db_index=True, max_length=64, unique=True, validators=[django.core.validators.MinLengthValidator(10)]
+            ),
         ),
         migrations.AlterField(
-            model_name='moderationaction',
-            name='action_type',
-            field=models.CharField(choices=[('warn', 'Warning'), ('remove', 'Remove Content'), ('ban', 'Ban User'), ('unfeature', 'Unfeature Playlist')], max_length=32),
+            model_name="moderationaction",
+            name="action_type",
+            field=models.CharField(
+                choices=[
+                    ("warn", "Warning"),
+                    ("remove", "Remove Content"),
+                    ("ban", "Ban User"),
+                    ("unfeature", "Unfeature Playlist"),
+                ],
+                max_length=32,
+            ),
         ),
         migrations.AlterField(
-            model_name='moderationaction',
-            name='moderator',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='moderation_actions', to=settings.AUTH_USER_MODEL),
+            model_name="moderationaction",
+            name="moderator",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="moderation_actions",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AlterField(
-            model_name='moderationaction',
-            name='playlist',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='moderation_actions', to='pyjams.featuredplaylist'),
+            model_name="moderationaction",
+            name="playlist",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="moderation_actions",
+                to="pyjams.featuredplaylist",
+            ),
         ),
         migrations.AlterField(
-            model_name='playlistmanager',
-            name='permissions',
+            model_name="playlistmanager",
+            name="permissions",
             field=models.JSONField(default=dict, validators=[pyjams.models.validate_permissions_schema]),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='spotify_email',
+            model_name="user",
+            name="spotify_email",
             field=models.EmailField(blank=True, db_index=True, max_length=254, null=True),
         ),
         migrations.AlterField(
-            model_name='user',
-            name='spotify_id',
-            field=models.CharField(blank=True, db_index=True, max_length=64, null=True, unique=True, validators=[django.core.validators.MinLengthValidator(10)]),
+            model_name="user",
+            name="spotify_id",
+            field=models.CharField(
+                blank=True,
+                db_index=True,
+                max_length=64,
+                null=True,
+                unique=True,
+                validators=[django.core.validators.MinLengthValidator(10)],
+            ),
         ),
         migrations.AddIndex(
-            model_name='featuredplaylist',
-            index=models.Index(fields=['featured_type', 'is_active'], name='pyjams_feat_feature_e6a6e7_idx'),
+            model_name="featuredplaylist",
+            index=models.Index(fields=["featured_type", "is_active"], name="pyjams_feat_feature_e6a6e7_idx"),
         ),
         migrations.AddIndex(
-            model_name='featuredplaylist',
-            index=models.Index(fields=['creator', 'featured_type'], name='pyjams_feat_creator_c7f366_idx'),
+            model_name="featuredplaylist",
+            index=models.Index(fields=["creator", "featured_type"], name="pyjams_feat_creator_c7f366_idx"),
         ),
         migrations.AddIndex(
-            model_name='moderationaction',
-            index=models.Index(fields=['playlist', 'action_type'], name='pyjams_mode_playlis_e902d0_idx'),
+            model_name="moderationaction",
+            index=models.Index(fields=["playlist", "action_type"], name="pyjams_mode_playlis_e902d0_idx"),
         ),
         migrations.AddIndex(
-            model_name='moderationaction',
-            index=models.Index(fields=['moderator', 'created_at'], name='pyjams_mode_moderat_6e7bf3_idx'),
+            model_name="moderationaction",
+            index=models.Index(fields=["moderator", "created_at"], name="pyjams_mode_moderat_6e7bf3_idx"),
         ),
         migrations.AddIndex(
-            model_name='playlistmanager',
-            index=models.Index(fields=['playlist', 'user', 'is_active'], name='pyjams_play_playlis_c7eb14_idx'),
+            model_name="playlistmanager",
+            index=models.Index(fields=["playlist", "user", "is_active"], name="pyjams_play_playlis_c7eb14_idx"),
         ),
         migrations.AddIndex(
-            model_name='user',
-            index=models.Index(fields=['role', 'is_active'], name='pyjams_user_role_252129_idx'),
+            model_name="user",
+            index=models.Index(fields=["role", "is_active"], name="pyjams_user_role_252129_idx"),
         ),
         migrations.AddIndex(
-            model_name='user',
-            index=models.Index(fields=['date_joined'], name='pyjams_user_date_jo_e480bb_idx'),
+            model_name="user",
+            index=models.Index(fields=["date_joined"], name="pyjams_user_date_jo_e480bb_idx"),
         ),
     ]
